@@ -1,21 +1,32 @@
 import os
-import geopandas
+import geopandas as gpd
 import rasterio
 from rasterio import mask
 
+
+from definitions import TRAINING_PATH, TEST_PATH, RASTER_PATH
+from utils import query
 buildings_path = None
-raster_path = None
 
-training_path = "training_data"
-test_path = "test_data"
-
+buil_def = {
+    "description":"All Buildings in an Area",
+    "endpoint": "elements/geometry",
+    "filter": """
+         building = *
+    """
+}
 
 def setup_folders():
-    if not os.path.exists(training_path):
-        os.mkdir(training_path)
-    if not os.path.exists(test_path):
-        os.mkdir(test_path)
+    if not os.path.exists(TRAINING_PATH):
+        os.mkdir(TRAINING_PATH)
+    if not os.path.exists(TEST_PATH):
+        os.mkdir(TEST_PATH)
 
+
+def get_building_data(raster):
+    bbox = raster.bounds
+    buildings = query(buil_def, bbox)
+    return buildings
 
 
 def generate_mask(raster, vector):
@@ -37,11 +48,11 @@ def create_ml_data(raster, r_mask, vector):
 
 def main():
     setup_folders()
-
-    buildings = geopandas.read_file(buildings_path)
-    raster = rasterio.open(raster_path)
-
+    raster = rasterio.open(RASTER_PATH)
+    buildings = get_building_data(raster)
+    buildings = gpd.GeoDataFrame.from_features(buildings["features"])
 
     r_mask = generate_mask(raster, buildings)
     bounds = buildings.bounds
 
+main()

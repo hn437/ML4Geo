@@ -13,7 +13,8 @@ Path(DATA_PATH).mkdir(parents=True, exist_ok=True)
 
 TRAINING_PATH = os.path.join(DATA_PATH, "training_data")
 TEST_PATH = os.path.join(DATA_PATH, "test_data")
-RASTER_PATH = os.path.join(DATA_PATH, "ortho_1-1_hn_s_nm061_2020_1.sid")
+RASTER_PATH = os.path.join(DATA_PATH, "testRaster.tif")
+INTERMEDIATE_PATH = os.path.join(DATA_PATH, "intermediate_result")
 
 
 def get_logger():

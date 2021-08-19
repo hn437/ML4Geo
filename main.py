@@ -1,5 +1,6 @@
 import json
 import os
+import sys
 
 import geopandas as gpd
 import numpy as np
@@ -118,7 +119,13 @@ def crop_and_save(raster, bbox_feature, path, counter):
 
 
 def create_ml_data(raster, r_mask, vector):
+    feature_count = len(vector)
     for index, row in vector.iterrows():
+        if index % 100 == 0:
+            percentage = int((index + 1) / feature_count * 100)
+            sys.stdout.write(f"\r Progress: {percentage} %")
+            sys.stdout.flush()
+
         bbox_feature = box(*row)
         bbox_feature = gpd.GeoSeries([bbox_feature])
 
@@ -155,5 +162,4 @@ def main(from_file):
 
 
 if __name__ == "__main__":
-    from_file = False
-    main(from_file)
+    main(False)

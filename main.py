@@ -18,6 +18,7 @@ from definitions import (
     TRAINING_PATH_MASK,
     logger,
 )
+from model import get_generator
 from utils import query
 
 
@@ -28,6 +29,15 @@ buil_def = {
          building = *
     """,
 }
+
+# SCRIPT SETTINGS:
+
+FROM_FILE = False
+
+# ML VARIABLES:
+
+BATCH_SIZE = 20
+TARGET_SIZE = [224, 224]
 
 
 def reproject_raster():
@@ -141,7 +151,7 @@ def create_ml_data(raster, r_mask, vector):
             crop_and_save(r_mask, bbox_feature, TRAINING_PATH_MASK, index)
 
 
-def main(from_file):
+def main(from_file: bool, batch_size: int, target_size: list):
     if not from_file:
         reproject_raster()
     raster = rasterio.open(os.path.join(INTERMEDIATE_PATH, "reprojected_raster.tif"))
@@ -160,6 +170,8 @@ def main(from_file):
     bounds = buildings.bounds
     create_ml_data(raster, r_mask, bounds)
 
+    train_gen, test_gen = get_generator(batch_size=batch_size, target_size=target_size)
+
 
 if __name__ == "__main__":
-    main(False)
+    main(from_file=FROM_FILE, batch_size=BATCH_SIZE, target_size=TARGET_SIZE)

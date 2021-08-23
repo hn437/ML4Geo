@@ -26,7 +26,7 @@ buil_def = {
     "description": "All Buildings in an Area",
     "endpoint": "elements/geometry",
     "filter": """
-         building = *
+         building = * and geometry:polygon
     """,
 }
 
@@ -48,13 +48,14 @@ def reproject_raster():
         )
         kwargs = src.meta.copy()
         kwargs.update(
-            {"crs": dst_crs, "transform": transform, "width": width, "height": height}
+            {"crs": dst_crs, "transform": transform, "width": width, "height": height, "compress": "jpeg", "tiled": True, "blockxsize": 256, "blockysize": 256}
         )
 
         with rasterio.open(
             os.path.join(INTERMEDIATE_PATH, "reprojected_raster.tif"), "w", **kwargs
         ) as dst:
             for i in range(1, src.count + 1):
+                logger.info(f"Reprojecting band {i} of {src.count + 1}...")
                 reproject(
                     source=rasterio.band(src, i),
                     destination=rasterio.band(dst, i),
@@ -63,7 +64,9 @@ def reproject_raster():
                     dst_transform=transform,
                     dst_crs=dst_crs,
                     resampling=Resampling.nearest,
+                    num_threads=7
                 )
+        logger.info("Raster reprojected and saved.")
 
 
 def get_building_data(raster):
@@ -104,9 +107,6 @@ def generate_mask(raster, vector):
         os.path.join(INTERMEDIATE_PATH, "masked_raster.tif"), "w", **out_meta
     ) as dest:
         dest.write(out_image, 1)
-
-    r_mask = rasterio.open(os.path.join(INTERMEDIATE_PATH, "masked_raster.tif"))
-    return r_mask
 
 
 def crop_and_save(raster, bbox_feature, path, counter):
@@ -166,11 +166,14 @@ def main(from_file: bool, batch_size: int, target_size: list):
         buildings = gpd.read_file(os.path.join(INTERMEDIATE_PATH, "buildings.geojson"))
     logger.info(f"Number of buildings queried: {len(buildings.index)}")
 
-    r_mask = generate_mask(raster, buildings["geometry"])
+    if not from_file:
+        generate_mask(raster, buildings["geometry"])
+    generate_mask(raster, buildings["geometry"])  # TODO: remove this line
+    r_mask = rasterio.open(os.path.join(INTERMEDIATE_PATH, "masked_raster.tif"))
     bounds = buildings.bounds
     create_ml_data(raster, r_mask, bounds)
 
-    train_gen, test_gen = get_generator(batch_size=batch_size, target_size=target_size)
+    #train_gen, test_gen = get_generator(batch_size=batch_size, target_size=target_size)
 
 
 if __name__ == "__main__":

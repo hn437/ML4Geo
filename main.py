@@ -6,7 +6,6 @@ import geopandas as gpd
 import numpy as np
 import rasterio
 from rasterio import mask
-from rasterio.warp import Resampling, calculate_default_transform, reproject
 from shapely.geometry import box
 
 from definitions import (
@@ -40,40 +39,12 @@ BATCH_SIZE = 20
 TARGET_SIZE = [224, 224]
 
 
-def reproject_raster():
-    dst_crs = "EPSG:4326"
-    with rasterio.open(RASTER_PATH) as src:
-        transform, width, height = calculate_default_transform(
-            src.crs, dst_crs, src.width, src.height, *src.bounds
-        )
-        kwargs = src.meta.copy()
-        kwargs.update(
-            {"crs": dst_crs, "transform": transform, "width": width, "height": height, "compress": "jpeg", "tiled": True, "blockxsize": 256, "blockysize": 256}
-        )
-
-        with rasterio.open(
-            os.path.join(INTERMEDIATE_PATH, "reprojected_raster.tif"), "w", **kwargs
-        ) as dst:
-            for i in range(1, src.count + 1):
-                logger.info(f"Reprojecting band {i} of {src.count}...")
-                reproject(
-                    source=rasterio.band(src, i),
-                    destination=rasterio.band(dst, i),
-                    src_transform=src.transform,
-                    src_crs=src.crs,
-                    dst_transform=transform,
-                    dst_crs=dst_crs,
-                    resampling=Resampling.nearest,
-                    num_threads=7
-                )
-        logger.info("Raster reprojected and saved.")
-
-
 def get_building_data(raster):
     bbox = box(*raster.bounds)
-    bbox = gpd.GeoSeries([bbox]).__geo_interface__
+    bbox = gpd.GeoSeries([bbox]).set_crs(raster.crs).to_crs(epsg=4326).__geo_interface__
     bbox = json.dumps(bbox)
     buildings = query(buil_def, bbox)
+    buildings = gpd.GeoDataFrame.from_features(buildings["features"]).set_crs(epsg=4326).to_crs(crs=raster.crs)
     return buildings
 
 
@@ -152,13 +123,10 @@ def create_ml_data(raster, r_mask, vector):
 
 
 def main(from_file: bool, batch_size: int, target_size: list):
-    if not from_file:
-        reproject_raster()
-    raster = rasterio.open(os.path.join(INTERMEDIATE_PATH, "reprojected_raster.tif"))
+    raster = rasterio.open(RASTER_PATH)
 
     if not from_file:
         buildings = get_building_data(raster)
-        buildings = gpd.GeoDataFrame.from_features(buildings["features"])
         buildings.to_file(
             os.path.join(INTERMEDIATE_PATH, "buildings.geojson"), driver="GeoJSON"
         )

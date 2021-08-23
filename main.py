@@ -55,7 +55,7 @@ def reproject_raster():
             os.path.join(INTERMEDIATE_PATH, "reprojected_raster.tif"), "w", **kwargs
         ) as dst:
             for i in range(1, src.count + 1):
-                logger.info(f"Reprojecting band {i} of {src.count + 1}...")
+                logger.info(f"Reprojecting band {i} of {src.count}...")
                 reproject(
                     source=rasterio.band(src, i),
                     destination=rasterio.band(dst, i),

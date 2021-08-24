@@ -1,3 +1,4 @@
+import keras.activations
 import tensorflow as tf
 from tensorflow.keras import layers
 from tensorflow.keras import Model
@@ -54,23 +55,51 @@ def build_model(target_size):
     for layer in model.layers:
         layer.trainable = False  # TODO: test if a low training rate outperforms no training
 
-
     # upsampling block 6
     model.add(layers.Conv2DTranspose((2, 2), filters=512, strides=(2, 2), padding="same", name="block6_upsampling"))
     model.add(layers.Concatenate([model.get_layer("block5_pool"), model.get_layer("block6_upsampling")]))
     model.add(layers.Conv2D(512, (3, 3), activation='relu', padding='same', name='block6_conv1'))
+    model.add(layers.BatchNormalization())
     model.add(layers.Conv2D(512, (3, 3), activation='relu', padding='same', name='block6_conv2'))
+    model.add(layers.BatchNormalization())
     model.add(layers.Conv2D(512, (3, 3), activation='relu', padding='same', name='block6_conv3'))
+    model.add(layers.BatchNormalization())
 
     # upsampling block 7
     model.add(layers.Conv2DTranspose((2, 2), filters=512, strides=(2, 2), padding="same", name="block7_upsampling"))
     model.add(layers.Concatenate([model.get_layer("block4_pool"), model.get_layer("block7_upsampling")]))
     model.add(layers.Conv2D(512, (3, 3), activation='relu', padding='same', name='block7_conv1'))
+    model.add(layers.BatchNormalization())
     model.add(layers.Conv2D(512, (3, 3), activation='relu', padding='same', name='block7_conv2'))
+    model.add(layers.BatchNormalization())
     model.add(layers.Conv2D(512, (3, 3), activation='relu', padding='same', name='block7_conv3'))
+    model.add(layers.BatchNormalization())
 
     # upsampling block 8
     model.add(layers.Conv2DTranspose((2, 2), filters=256, strides=(2, 2), padding="same", name="block8_upsampling"))
     model.add(layers.Concatenate([model.get_layer("block3_pool"), model.get_layer("block8_upsampling")]))
     model.add(layers.Conv2D(256, (3, 3), activation='relu', padding='same', name='block8_conv1'))
+    model.add(layers.BatchNormalization())
     model.add(layers.Conv2D(256, (3, 3), activation='relu', padding='same', name='block8_conv2'))
+    model.add(layers.BatchNormalization())
+
+    # upsampling block 9
+    model.add(layers.Conv2DTranspose((2, 2), filters=128, strides=(2, 2), padding="same", name="block9_upsampling"))
+    model.add(layers.Concatenate([model.get_layer("block2_pool"), model.get_layer("block9_upsampling")]))
+    model.add(layers.Conv2D(128, (3, 3), activation='relu', padding='same', name='block9_conv1'))
+    model.add(layers.BatchNormalization())
+    model.add(layers.Conv2D(128, (3, 3), activation='relu', padding='same', name='block9_conv2'))
+    model.add(layers.BatchNormalization())
+
+    # upsampling block 10
+    model.add(layers.Conv2DTranspose((2, 2), filters=64, strides=(2, 2), padding="same", name="block10_upsampling"))
+    model.add(layers.Concatenate([model.get_layer("block1_pool"), model.get_layer("block10_upsampling")]))
+    model.add(layers.Conv2D(64, (3, 3), activation='relu', padding='same', name='block10_conv1'))
+    model.add(layers.BatchNormalization())
+    model.add(layers.Conv2D(64, (3, 3), activation='relu', padding='same', name='block10_conv2'))
+    model.add(layers.BatchNormalization())
+
+    # output
+    model.add(layers.Conv2D(kernel_size=1, filters=1, activation=keras.activations.sigmoid))
+
+    return model

@@ -1,13 +1,15 @@
 import json
 import os
 import sys
+from itertools import product
 
 import geopandas as gpd
 import numpy as np
 import rasterio
 from rasterio import mask, windows
 from shapely.geometry import box
-from itertools import product
+from skimage.filters import median
+from skimage.morphology import disk
 
 from definitions import (
     INTERMEDIATE_PATH,
@@ -20,7 +22,6 @@ from definitions import (
 )
 from model import get_generator
 from utils import query
-
 
 buil_def = {
     "description": "All Buildings in an Area",
@@ -46,21 +47,29 @@ def get_building_data(raster):
     bbox = gpd.GeoSeries([bbox]).set_crs(raster.crs).to_crs(epsg=4326).__geo_interface__
     bbox = json.dumps(bbox)
     buildings = query(buil_def, bbox)
-    buildings = gpd.GeoDataFrame.from_features(buildings["features"]).set_crs(epsg=4326).to_crs(crs=raster.crs)
+    buildings = (
+        gpd.GeoDataFrame.from_features(buildings["features"])
+        .set_crs(epsg=4326)
+        .to_crs(crs=raster.crs)
+    )
     return buildings
 
 
 def get_tiles(ds, width=256, height=256):
-    ncols, nrows = ds.meta['width'], ds.meta['height']
+    ncols, nrows = ds.meta["width"], ds.meta["height"]
     offsets = product(range(0, ncols, width), range(0, nrows, height))
     big_window = windows.Window(col_off=0, row_off=0, width=ncols, height=nrows)
     for col_off, row_off in offsets:
-        window = windows.Window(col_off=col_off, row_off=row_off, width=width, height=height).intersection(big_window)
+        window = windows.Window(
+            col_off=col_off, row_off=row_off, width=width, height=height
+        ).intersection(big_window)
         transform = windows.transform(window, ds.transform)
         yield window, transform
 
 
 def generate_mask(raster, vector):
+    if os.path.exists(os.path.join(INTERMEDIATE_PATH, "masked_raster.tif")):
+        os.remove(os.path.join(INTERMEDIATE_PATH, "masked_raster.tif"))
     out_meta = raster.meta.copy()
     out_meta.update(
         {
@@ -71,12 +80,12 @@ def generate_mask(raster, vector):
 
     for window, transform in get_tiles(raster, TILE_WIDTH, TILE_HEIGHT):
         meta_tile = raster.meta.copy()
-        meta_tile['transform'] = transform
-        meta_tile['width'], meta_tile['height'] = window.width, window.height
+        meta_tile["transform"] = transform
+        meta_tile["width"], meta_tile["height"] = window.width, window.height
 
         tiledata = raster.read(window=window)
         with rasterio.open(
-                os.path.join(INTERMEDIATE_PATH, f"tile.tif"), "w", **meta_tile
+            os.path.join(INTERMEDIATE_PATH, f"tile.tif"), "w", **meta_tile
         ) as dest:
             dest.write(tiledata)
         tile = rasterio.open(os.path.join(INTERMEDIATE_PATH, f"tile.tif"))
@@ -95,11 +104,19 @@ def generate_mask(raster, vector):
         )
         out_image = np.sum(out_image, axis=0, dtype="uint8")
         out_image = np.where(out_image > 0, 1, out_image)
+        out_image = median(out_image, disk(1), mode="constant", cval=0)
         out_image = np.array([out_image])
 
-
-        with rasterio.open(os.path.join(INTERMEDIATE_PATH, "masked_raster.tif"), 'r+', **out_meta) as outds:
-            outds.write(out_image, window=window)
+        if os.path.exists(os.path.join(INTERMEDIATE_PATH, "masked_raster.tif")):
+            with rasterio.open(
+                os.path.join(INTERMEDIATE_PATH, "masked_raster.tif"), "r+", **out_meta
+            ) as outds:
+                outds.write(out_image, window=window)
+        else:
+            with rasterio.open(
+                os.path.join(INTERMEDIATE_PATH, "masked_raster.tif"), "w", **out_meta
+            ) as outds:
+                outds.write(out_image, window=window)
 
 
 def crop_and_save(raster, bbox_feature, path, counter):
@@ -127,7 +144,7 @@ def create_ml_data(raster, r_mask, vector):
     for index, row in vector.iterrows():
         if index % 100 == 0:
             percentage = int((index + 1) / feature_count * 100)
-            sys.stdout.write(f"\r Progress: {percentage} %\n")
+            sys.stdout.write(f"\r Progress: {percentage} %")
             sys.stdout.flush()
 
         bbox_feature = box(*row)
@@ -146,7 +163,9 @@ def create_ml_data(raster, r_mask, vector):
                 crop_and_save(r_mask, bbox_feature, TRAINING_PATH_MASK, index)
         except:
             counter_failed_crops += 1
-    logger.info(f"Cropping failed for {counter_failed_crops} buildings")
+    logger.info(f"\n ML Data for all footprints generated!")
+    if counter_failed_crops > 0:
+        logger.info(f"Cropping failed for {counter_failed_crops} buildings")
 
 
 def main(from_file: bool, batch_size: int, target_size: list):
@@ -171,7 +190,7 @@ def main(from_file: bool, batch_size: int, target_size: list):
     logger.info("Create data for ML")
     create_ml_data(raster, r_mask, bounds)
 
-    #train_gen, test_gen = get_generator(batch_size=batch_size, target_size=target_size)
+    # train_gen, test_gen = get_generator(batch_size=batch_size, target_size=target_size)
 
 
 if __name__ == "__main__":

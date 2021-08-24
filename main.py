@@ -61,20 +61,32 @@ def get_tiles(ds, width=256, height=256):
 
 
 def generate_mask(raster, vector):
-    meta = raster.meta.copy()
+    out_meta = raster.meta.copy()
+    out_meta.update(
+        {
+            "driver": "GTiff",
+            "count": int(1),
+        }
+    )
 
     for window, transform in get_tiles(raster, TILE_WIDTH, TILE_HEIGHT):
-        meta['transform'] = transform
-        meta['width'], meta['height'] = window.width, window.height
+        meta_tile = raster.meta.copy()
+        meta_tile['transform'] = transform
+        meta_tile['width'], meta_tile['height'] = window.width, window.height
 
-        tile = raster.read(window=window)
+        tiledata = raster.read(window=window)
+        with rasterio.open(
+                os.path.join(INTERMEDIATE_PATH, f"tile.tif"), "w", **meta_tile
+        ) as dest:
+            dest.write(tiledata)
+        tile = rasterio.open(os.path.join(INTERMEDIATE_PATH, f"tile.tif"))
 
         out_image, out_transform = mask.mask(
             tile,
             vector,
+            nodata=None,
             all_touched=False,
             invert=False,
-            nodata=None,
             filled=True,
             crop=False,
             pad=False,
@@ -83,48 +95,11 @@ def generate_mask(raster, vector):
         )
         out_image = np.sum(out_image, axis=0, dtype="uint8")
         out_image = np.where(out_image > 0, 1, out_image)
-        meta.update(
-            {
-                "driver": "GTiff",
-                "count": int(1),
-                "compression": "jpeg",
-            }
-        )
+        out_image = np.array([out_image])
 
-        with rasterio.open(os.path.join(INTERMEDIATE_PATH, "masked_raster.tif"), 'w', **meta) as outds:
+
+        with rasterio.open(os.path.join(INTERMEDIATE_PATH, "masked_raster.tif"), 'r+', **out_meta) as outds:
             outds.write(out_image, window=window)
-
-    """
-    out_image, out_transform = mask.mask(
-        raster,
-        vector,
-        all_touched=False,
-        invert=False,
-        nodata=None,
-        filled=True,
-        crop=False,
-        pad=False,
-        pad_width=0.5,
-        indexes=None,
-    )
-    out_image = np.sum(out_image, axis=0, dtype="uint8")
-    out_image = np.where(out_image > 0, 1, out_image)
-    out_meta = raster.meta
-    out_meta.update(
-        {
-            "driver": "GTiff",
-            "count": int(1),
-            "height": out_image.shape[0],
-            "width": out_image.shape[1],
-            "transform": out_transform,
-        }
-    )
-
-    with rasterio.open(
-        os.path.join(INTERMEDIATE_PATH, "masked_raster.tif"), "w", **out_meta
-    ) as dest:
-        dest.write(out_image, 1)
-    """
 
 
 def crop_and_save(raster, bbox_feature, path, counter):
@@ -173,6 +148,7 @@ def main(from_file: bool, batch_size: int, target_size: list):
     raster = rasterio.open(RASTER_PATH)
 
     if not from_file:
+        logger.info("Query buildings...")
         buildings = get_building_data(raster)
         buildings.to_file(
             os.path.join(INTERMEDIATE_PATH, "buildings.geojson"), driver="GeoJSON"
@@ -182,10 +158,12 @@ def main(from_file: bool, batch_size: int, target_size: list):
     logger.info(f"Number of buildings queried: {len(buildings.index)}")
 
     if not from_file:
+        logger.info("Generate Mask")
         generate_mask(raster, buildings["geometry"])
-    generate_mask(raster, buildings["geometry"])  # TODO: remove this line
+        logger.info("Mask written")
     r_mask = rasterio.open(os.path.join(INTERMEDIATE_PATH, "masked_raster.tif"))
     bounds = buildings.bounds
+    logger.info("Create data for ML")
     create_ml_data(raster, r_mask, bounds)
 
     #train_gen, test_gen = get_generator(batch_size=batch_size, target_size=target_size)

@@ -5,8 +5,9 @@ import sys
 import geopandas as gpd
 import numpy as np
 import rasterio
-from rasterio import mask
+from rasterio import mask, windows
 from shapely.geometry import box
+from itertools import product
 
 from definitions import (
     INTERMEDIATE_PATH,
@@ -32,7 +33,8 @@ buil_def = {
 # SCRIPT SETTINGS:
 
 FROM_FILE = False
-
+TILE_WIDTH = 2052
+TILE_HEIGHT = 2052
 # ML VARIABLES:
 
 BATCH_SIZE = 20
@@ -48,7 +50,51 @@ def get_building_data(raster):
     return buildings
 
 
+def get_tiles(ds, width=256, height=256):
+    ncols, nrows = ds.meta['width'], ds.meta['height']
+    offsets = product(range(0, ncols, width), range(0, nrows, height))
+    big_window = windows.Window(col_off=0, row_off=0, width=ncols, height=nrows)
+    for col_off, row_off in offsets:
+        window = windows.Window(col_off=col_off, row_off=row_off, width=width, height=height).intersection(big_window)
+        transform = windows.transform(window, ds.transform)
+        yield window, transform
+
+
 def generate_mask(raster, vector):
+    meta = raster.meta.copy()
+
+    for window, transform in get_tiles(raster, TILE_WIDTH, TILE_HEIGHT):
+        meta['transform'] = transform
+        meta['width'], meta['height'] = window.width, window.height
+
+        tile = raster.read(window=window)
+
+        out_image, out_transform = mask.mask(
+            tile,
+            vector,
+            all_touched=False,
+            invert=False,
+            nodata=None,
+            filled=True,
+            crop=False,
+            pad=False,
+            pad_width=0.5,
+            indexes=None,
+        )
+        out_image = np.sum(out_image, axis=0, dtype="uint8")
+        out_image = np.where(out_image > 0, 1, out_image)
+        meta.update(
+            {
+                "driver": "GTiff",
+                "count": int(1),
+                "compression": "jpeg",
+            }
+        )
+
+        with rasterio.open(os.path.join(INTERMEDIATE_PATH, "masked_raster.tif"), 'w', **meta) as outds:
+            outds.write(out_image, window=window)
+
+    """
     out_image, out_transform = mask.mask(
         raster,
         vector,
@@ -78,6 +124,7 @@ def generate_mask(raster, vector):
         os.path.join(INTERMEDIATE_PATH, "masked_raster.tif"), "w", **out_meta
     ) as dest:
         dest.write(out_image, 1)
+    """
 
 
 def crop_and_save(raster, bbox_feature, path, counter):

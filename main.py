@@ -123,25 +123,30 @@ def crop_and_save(raster, bbox_feature, path, counter):
 
 def create_ml_data(raster, r_mask, vector):
     feature_count = len(vector)
+    counter_failed_crops = 0
     for index, row in vector.iterrows():
         if index % 100 == 0:
             percentage = int((index + 1) / feature_count * 100)
-            sys.stdout.write(f"\r Progress: {percentage} %")
+            sys.stdout.write(f"\r Progress: {percentage} %\n")
             sys.stdout.flush()
 
         bbox_feature = box(*row)
         bbox_feature = gpd.GeoSeries([bbox_feature])
 
-        if index % 5 == 0 and index != 0:
-            answer = crop_and_save(raster, bbox_feature, TEST_PATH_IMG, index)
-            if answer is False:
-                continue
-            crop_and_save(r_mask, bbox_feature, TEST_PATH_MASK, index)
-        else:
-            answer = crop_and_save(raster, bbox_feature, TRAINING_PATH_IMG, index)
-            if answer is False:
-                continue
-            crop_and_save(r_mask, bbox_feature, TRAINING_PATH_MASK, index)
+        try:
+            if index % 5 == 0 and index != 0:
+                answer = crop_and_save(raster, bbox_feature, TEST_PATH_IMG, index)
+                if answer is False:
+                    continue
+                crop_and_save(r_mask, bbox_feature, TEST_PATH_MASK, index)
+            else:
+                answer = crop_and_save(raster, bbox_feature, TRAINING_PATH_IMG, index)
+                if answer is False:
+                    continue
+                crop_and_save(r_mask, bbox_feature, TRAINING_PATH_MASK, index)
+        except:
+            counter_failed_crops += 1
+    logger.info(f"Cropping failed for {counter_failed_crops} buildings")
 
 
 def main(from_file: bool, batch_size: int, target_size: list):

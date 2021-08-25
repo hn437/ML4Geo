@@ -14,11 +14,11 @@ bottleneck=1.3.2=py37h2a96729_1
 brotli=1.0.9=ha925a31_2
 brotlipy=0.7.0=py37h2bbff1b_1003
 bzip2=1.0.8=h8ffe710_4
-ca-certificates=2021.7.5=haa95532_1
+ca-certificates=2021.5.30=h5b45459_0
 cached-property=1.5.2=py_0
 cachetools=4.2.2=pyhd3eb1b0_0
 cairo=1.16.0=hb19e0ff_1008
-certifi=2021.5.30=py37haa95532_0
+certifi=2021.5.30=py37h03978a9_0
 cffi=1.14.6=py37h2bbff1b_0
 cfitsio=3.470=h0af3d06_7
 chardet=4.0.0=py37haa95532_1003
@@ -74,6 +74,7 @@ lazy-object-proxy=1.6.0=py37h2bbff1b_0
 lerc=2.2.1=h0e60522_0
 libblas=3.9.0=11_win64_mkl
 libcblas=3.9.0=11_win64_mkl
+libclang=11.1.0=default_h5c34c98_1
 libcurl=7.78.0=h789b8ee_0
 libdeflate=1.7=h8ffe710_5
 libffi=3.3=h0e60522_2
@@ -106,6 +107,7 @@ m2w64-libwinpthread-git=5.0.0.4634.697f757=2
 m2w64-xz=5.2.2=2
 mapclassify=2.4.3=pyhd3eb1b0_0
 markdown=3.3.4=py37haa95532_0
+matplotlib=3.4.2=py37h03978a9_0
 matplotlib-base=3.4.2=py37h49ac443_0
 mccabe=0.6.1=py37_1
 mkl=2021.3.0=hb70f87d_564
@@ -122,7 +124,7 @@ numpy-base=1.20.3=py37hc2deb75_0
 oauthlib=3.1.1=pyhd3eb1b0_0
 olefile=0.46=py37_0
 openjpeg=2.4.0=hb211442_1
-openssl=1.1.1k=h2bbff1b_0
+openssl=1.1.1k=h8ffe710_1
 opt_einsum=3.3.0=pyhd3eb1b0_1
 packaging=21.0=pyhd3eb1b0_0
 pandas=1.3.1=py37h6214cd6_0
@@ -144,6 +146,11 @@ pylint=2.9.6=py37haa95532_1
 pyopenssl=20.0.1=pyhd3eb1b0_1
 pyparsing=2.4.7=pyhd3eb1b0_0
 pyproj=2.6.1.post1=py37h593ac45_1
+pyqt=5.12.3=py37h03978a9_7
+pyqt-impl=5.12.3=py37hf2a7229_7
+pyqt5-sip=4.19.18=py37hf2a7229_7
+pyqtchart=5.12=py37hf2a7229_7
+pyqtwebengine=5.12.1=py37hf2a7229_7
 pyreadline=2.1=py37_1
 pysocks=1.7.1=py37_1
 python=3.7.11=h6244533_0
@@ -152,6 +159,7 @@ python_abi=3.7=2_cp37m
 pytz=2021.1=pyhd3eb1b0_0
 pywavelets=1.1.1=py37he774522_2
 pyyaml=5.4.1=pypi_0
+qt=5.12.9=h5909a2a_4
 rasterio=1.1.0=py37h039b02d_0
 requests=2.25.1=pyhd3eb1b0_0
 requests-oauthlib=1.3.0=py_0

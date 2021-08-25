@@ -1,13 +1,16 @@
-import keras.activations
+from tensorflow.keras import activations
 import tensorflow as tf
 from tensorflow.keras import layers
-from tensorflow.keras import Model
+from tensorflow.keras import Model, Sequential
+from tensorflow.keras.optimizers import Adam, Nadam
+from tensorflow.keras.losses import BinaryCrossentropy
+from tensorflow.keras.metrics import Accuracy
 from tensorflow.keras.applications.vgg16 import VGG16
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
 from definitions import TRAINING_PATH_IMG, TRAINING_PATH_MASK, TEST_PATH_IMG, TEST_PATH_MASK
 
 
-# https://stackoverflow.com/questions/49492255/how-to-replace-or-insert-intermediate-layer-in-keras-model :)
+"""# https://stackoverflow.com/questions/49492255/how-to-replace-or-insert-intermediate-layer-in-keras-model :)
 def insert_intermediate_layer_in_keras(model, layer_id, new_layer):
     layers = [l for l in model.layers]
 
@@ -18,7 +21,7 @@ def insert_intermediate_layer_in_keras(model, layer_id, new_layer):
         x = layers[i](x)
 
     new_model = Model(input=layers[0].input, output=x)
-    return new_model
+    return new_model"""
 
 
 ## generator
@@ -47,59 +50,58 @@ def get_generator(batch_size, target_size):
 
 
 ## cnn
+def conv_block(input, num_filters):
+    x = layers.Conv2D(num_filters, 3, padding="same")(input)
+    x = layers.BatchNormalization()(x)
+    x = layers.Activation("relu")(x)
+    return x
+
+def decoder_block(input, skip_features, num_filters, no_of_conv_blocks):
+    x = layers.Conv2DTranspose(num_filters, (2, 2), strides=2, padding="same")(input)
+    x = layers.Concatenate()([x, skip_features])
+    for _ in range(no_of_conv_blocks):
+        x = conv_block(x, num_filters)
+    return x
 
 def build_model(target_size):
-    model = VGG16(input_shape=target_size + [3], include_top=False, weights="imagenet")
-    # TODO: check for BATCH NORMALIZATION after each CONV Layer we can use insert_intermediate_layer_in_keras above for this purpose
+    inputs = layers.Input(shape=target_size + [3])
 
-    for layer in model.layers:
+    vgg16 = VGG16(include_top=False, weights="imagenet", input_tensor=inputs)
+
+    # make the first pretrained layer untrainable
+    for layer in vgg16.layers[:-8]:
         layer.trainable = False  # TODO: test if a low training rate outperforms no training
 
-    # upsampling block 6
-    model.add(layers.Conv2DTranspose((2, 2), filters=512, strides=(2, 2), padding="same", name="block6_upsampling"))
-    model.add(layers.Concatenate([model.get_layer("block5_pool"), model.get_layer("block6_upsampling")]))
-    model.add(layers.Conv2D(512, (3, 3), activation='relu', padding='same', name='block6_conv1'))
-    model.add(layers.BatchNormalization())
-    model.add(layers.Conv2D(512, (3, 3), activation='relu', padding='same', name='block6_conv2'))
-    model.add(layers.BatchNormalization())
-    model.add(layers.Conv2D(512, (3, 3), activation='relu', padding='same', name='block6_conv3'))
-    model.add(layers.BatchNormalization())
+    # encoder layer
+    e1 = vgg16.get_layer("block1_conv2").output
+    e2 = vgg16.get_layer("block2_conv2").output
+    e3 = vgg16.get_layer("block3_conv3").output
+    e4 = vgg16.get_layer("block4_conv3").output
+    e5 = vgg16.get_layer("block5_conv3").output
 
-    # upsampling block 7
-    model.add(layers.Conv2DTranspose((2, 2), filters=512, strides=(2, 2), padding="same", name="block7_upsampling"))
-    model.add(layers.Concatenate([model.get_layer("block4_pool"), model.get_layer("block7_upsampling")]))
-    model.add(layers.Conv2D(512, (3, 3), activation='relu', padding='same', name='block7_conv1'))
-    model.add(layers.BatchNormalization())
-    model.add(layers.Conv2D(512, (3, 3), activation='relu', padding='same', name='block7_conv2'))
-    model.add(layers.BatchNormalization())
-    model.add(layers.Conv2D(512, (3, 3), activation='relu', padding='same', name='block7_conv3'))
-    model.add(layers.BatchNormalization())
+    # bottom layer
+    last_pool = vgg16.get_layer("block5_pool").output
 
-    # upsampling block 8
-    model.add(layers.Conv2DTranspose((2, 2), filters=256, strides=(2, 2), padding="same", name="block8_upsampling"))
-    model.add(layers.Concatenate([model.get_layer("block3_pool"), model.get_layer("block8_upsampling")]))
-    model.add(layers.Conv2D(256, (3, 3), activation='relu', padding='same', name='block8_conv1'))
-    model.add(layers.BatchNormalization())
-    model.add(layers.Conv2D(256, (3, 3), activation='relu', padding='same', name='block8_conv2'))
-    model.add(layers.BatchNormalization())
-
-    # upsampling block 9
-    model.add(layers.Conv2DTranspose((2, 2), filters=128, strides=(2, 2), padding="same", name="block9_upsampling"))
-    model.add(layers.Concatenate([model.get_layer("block2_pool"), model.get_layer("block9_upsampling")]))
-    model.add(layers.Conv2D(128, (3, 3), activation='relu', padding='same', name='block9_conv1'))
-    model.add(layers.BatchNormalization())
-    model.add(layers.Conv2D(128, (3, 3), activation='relu', padding='same', name='block9_conv2'))
-    model.add(layers.BatchNormalization())
-
-    # upsampling block 10
-    model.add(layers.Conv2DTranspose((2, 2), filters=64, strides=(2, 2), padding="same", name="block10_upsampling"))
-    model.add(layers.Concatenate([model.get_layer("block1_pool"), model.get_layer("block10_upsampling")]))
-    model.add(layers.Conv2D(64, (3, 3), activation='relu', padding='same', name='block10_conv1'))
-    model.add(layers.BatchNormalization())
-    model.add(layers.Conv2D(64, (3, 3), activation='relu', padding='same', name='block10_conv2'))
-    model.add(layers.BatchNormalization())
+    # decoder layer
+    d1 = decoder_block(last_pool, e5, 512, 3)
+    d2 = decoder_block(d1, e4, 512, 3)
+    d3 = decoder_block(d2, e3, 256, 3)
+    d4 = decoder_block(d3, e2, 128, 2)
+    d5 = decoder_block(d4, e1, 64, 2)
 
     # output
-    model.add(layers.Conv2D(kernel_size=1, filters=1, activation=keras.activations.sigmoid))
+    outputs = layers.Conv2D(1, 1, padding="same", activation="sigmoid")(d5)
+
+    # initiating model
+    model = Model(inputs, outputs, name="ML4Geo")
+
+    # compile model
+    model.compile(loss=BinaryCrossentropy(), optimizer=Nadam(), metrics=Accuracy())
 
     return model
+
+
+if __name__ == "__main__":
+    target_size = [224, 224]
+    model = build_model(target_size)
+    model.summary()

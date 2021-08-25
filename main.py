@@ -10,6 +10,7 @@ from rasterio import mask, windows
 from shapely.geometry import box
 from skimage.filters import median
 from skimage.morphology import disk
+import matplotlib.pyplot as plt
 
 from definitions import (
     INTERMEDIATE_PATH,
@@ -20,7 +21,7 @@ from definitions import (
     TRAINING_PATH_MASK,
     logger,
 )
-from model import get_generator
+from model import get_generator, build_model
 from utils import query
 
 buil_def = {
@@ -33,7 +34,7 @@ buil_def = {
 
 # SCRIPT SETTINGS:
 
-FROM_FILE = False
+DATA_PROCESSING = False
 TILE_WIDTH = 2052
 TILE_HEIGHT = 2052
 # ML VARIABLES:
@@ -168,30 +169,40 @@ def create_ml_data(raster, r_mask, vector):
         logger.info(f"Cropping failed for {counter_failed_crops} buildings")
 
 
-def main(from_file: bool, batch_size: int, target_size: list):
-    raster = rasterio.open(RASTER_PATH)
+def main(data_processing: bool, batch_size: int, target_size: list):
+    if data_processing:
+        raster = rasterio.open(RASTER_PATH)
 
-    if not from_file:
         logger.info("Query buildings...")
         buildings = get_building_data(raster)
         buildings.to_file(
             os.path.join(INTERMEDIATE_PATH, "buildings.geojson"), driver="GeoJSON"
         )
-    else:
-        buildings = gpd.read_file(os.path.join(INTERMEDIATE_PATH, "buildings.geojson"))
-    logger.info(f"Number of buildings queried: {len(buildings.index)}")
+        logger.info(f"Number of buildings queried: {len(buildings.index)}")
 
-    if not from_file:
         logger.info("Generate Mask")
         generate_mask(raster, buildings["geometry"])
         logger.info("Mask written")
-    r_mask = rasterio.open(os.path.join(INTERMEDIATE_PATH, "masked_raster.tif"))
-    bounds = buildings.bounds
-    logger.info("Create data for ML")
-    create_ml_data(raster, r_mask, bounds)
+        r_mask = rasterio.open(os.path.join(INTERMEDIATE_PATH, "masked_raster.tif"))
+        bounds = buildings.bounds
+        logger.info("Create data for ML")
+        create_ml_data(raster, r_mask, bounds)
 
-    # train_gen, test_gen = get_generator(batch_size=batch_size, target_size=target_size)
+    train_gen, test_gen = get_generator(batch_size=batch_size, target_size=target_size)
+    model = build_model(target_size=target_size)
+
+    history = model.fit(train_gen, validation_data=test_gen, steps_per_epoch=100, epochs=10)
+
+    plt.figure()
+    plt.plot(range(15), history.history['categorical_accuracy'],
+             label='Training Accuracy')
+    plt.plot(range(15), history.history['val_categorical_accuracy'],
+             label='Validation Accuracy')
+    plt.legend()
+    plt.show()
+
+    model.save_weights(os.path.join(INTERMEDIATE_PATH, "weights.h5"))
 
 
 if __name__ == "__main__":
-    main(from_file=FROM_FILE, batch_size=BATCH_SIZE, target_size=TARGET_SIZE)
+    main(data_processing=DATA_PROCESSING, batch_size=BATCH_SIZE, target_size=TARGET_SIZE)

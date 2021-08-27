@@ -20,6 +20,7 @@ from definitions import (
     TRAINING_PATH_MASK,
     logger,
 )
+from main import TILE_HEIGHT, TILE_WIDTH
 from utils import query
 
 buil_def = {

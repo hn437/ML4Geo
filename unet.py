@@ -7,7 +7,7 @@ from main import BATCH_SIZE, EPOCH, TARGET_SIZE
 from model import build_model, get_generator
 
 
-def unet_fit():
+def unet_fit() -> None:
     logger.info("Setting up generator...")
     train_gen, test_gen, no_of_trainsets, no_of_validsets = get_generator(
         batch_size=BATCH_SIZE, target_size=TARGET_SIZE

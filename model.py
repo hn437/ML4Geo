@@ -1,52 +1,76 @@
-from tensorflow.keras import activations
 import tensorflow as tf
-from tensorflow.keras import layers
-from tensorflow.keras import Model, Sequential
-from tensorflow.keras.optimizers import Adam, Nadam
-from tensorflow.keras.losses import BinaryCrossentropy
-from tensorflow.keras.metrics import Accuracy
+from tensorflow.keras import Model, Sequential, activations, layers
 from tensorflow.keras.applications.vgg16 import VGG16
+from tensorflow.keras.losses import BinaryCrossentropy
+from tensorflow.keras.optimizers import Adam, Nadam
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
-from definitions import TRAINING_PATH_IMG, TRAINING_PATH_MASK, TEST_PATH_IMG, TEST_PATH_MASK
 
-
-"""# https://stackoverflow.com/questions/49492255/how-to-replace-or-insert-intermediate-layer-in-keras-model :)
-def insert_intermediate_layer_in_keras(model, layer_id, new_layer):
-    layers = [l for l in model.layers]
-
-    x = layers[0].output
-    for i in range(1, len(layers)):
-        if i == layer_id:
-            x = new_layer(x)
-        x = layers[i](x)
-
-    new_model = Model(input=layers[0].input, output=x)
-    return new_model"""
+from definitions import TEST_PATH, TRAINING_PATH, TRAINING_PATH_IMG
 
 
 ## generator
-
 def get_generator(batch_size, target_size):
     seed = 42
-    gen_train = ImageDataGenerator(rescale=1./255.,
-                                       rotation_range=40,
-                                       width_shift_range=0.2,
-                                       height_shift_range=0.2, shear_range=0.2, zoom_range=0.2, horizontal_flip=True)
-    train_generator_img = gen_train.flow_from_directory(TRAINING_PATH_IMG, batch_size=batch_size, class_mode=None,
-                                                        target_size=target_size,seed=seed)
-    train_generator_mask = gen_train.flow_from_directory(TRAINING_PATH_MASK, batch_size=batch_size, class_mode=None,
-                                                         target_size=target_size,seed=seed)
+    gen_train_img = ImageDataGenerator(
+        rescale=1.0 / 255.0,
+        rotation_range=40,
+        width_shift_range=0.2,
+        height_shift_range=0.2,
+        shear_range=0.2,
+        zoom_range=0.2,
+        horizontal_flip=True,
+    )
+    gen_train_mask = ImageDataGenerator(
+        rotation_range=40,
+        width_shift_range=0.2,
+        height_shift_range=0.2,
+        shear_range=0.2,
+        zoom_range=0.2,
+        horizontal_flip=True,
+    )
 
-    TRAIN_GENERATOR = zip(train_generator_img, train_generator_mask)  # combine into one to yield both at the same time
+    train_generator_img = gen_train_img.flow_from_directory(
+        TRAINING_PATH,
+        classes=["img"],
+        batch_size=batch_size,
+        class_mode=None,
+        target_size=target_size,
+        seed=seed,
+    )
+    train_generator_mask = gen_train_mask.flow_from_directory(
+        TRAINING_PATH,
+        classes=["mask"],
+        batch_size=batch_size,
+        class_mode=None,
+        target_size=target_size,
+        seed=seed,
+    )
+    no_of_trainsets = train_generator_img.samples
+    TRAIN_GENERATOR = zip(
+        train_generator_img, train_generator_mask
+    )  # combine into one to yield both at the same time
 
-
-    gen_test = ImageDataGenerator(rescale=1./255.)
-    test_generator_img = gen_test.flow_from_directory(TEST_PATH_IMG, batch_size=batch_size, class_mode=None,
-                                                      target_size=target_size, seed=seed)
-    test_generator_mask = gen_test.flow_from_directory(TEST_PATH_MASK, batch_size=batch_size, class_mode=None,
-                                                       target_size=target_size, seed=seed)
+    gen_test_img = ImageDataGenerator(rescale=1.0 / 255.0)
+    gen_test_mask = ImageDataGenerator()
+    test_generator_img = gen_test_img.flow_from_directory(
+        TEST_PATH,
+        classes=["img"],
+        batch_size=batch_size,
+        class_mode=None,
+        target_size=target_size,
+        seed=seed,
+    )
+    test_generator_mask = gen_test_mask.flow_from_directory(
+        TEST_PATH,
+        classes=["mask"],
+        batch_size=batch_size,
+        class_mode=None,
+        target_size=target_size,
+        seed=seed,
+    )
+    no_of_validsets = test_generator_img.samples
     TEST_GENERATOR = zip(test_generator_img, test_generator_mask)
-    return TRAIN_GENERATOR, TEST_GENERATOR
+    return TRAIN_GENERATOR, TEST_GENERATOR, no_of_trainsets, no_of_validsets
 
 
 ## cnn
@@ -56,12 +80,14 @@ def conv_block(input, num_filters):
     x = layers.Activation("relu")(x)
     return x
 
+
 def decoder_block(input, skip_features, num_filters, no_of_conv_blocks):
     x = layers.Conv2DTranspose(num_filters, (2, 2), strides=2, padding="same")(input)
     x = layers.Concatenate()([x, skip_features])
     for _ in range(no_of_conv_blocks):
         x = conv_block(x, num_filters)
     return x
+
 
 def build_model(target_size):
     inputs = layers.Input(shape=target_size + [3])
@@ -70,7 +96,9 @@ def build_model(target_size):
 
     # make the first pretrained layer untrainable
     for layer in vgg16.layers[:-8]:
-        layer.trainable = False  # TODO: test if a low training rate outperforms no training
+        layer.trainable = (
+            False  # TODO: test if a low training rate outperforms no training
+        )
 
     # encoder layer
     e1 = vgg16.get_layer("block1_conv2").output
@@ -96,12 +124,6 @@ def build_model(target_size):
     model = Model(inputs, outputs, name="ML4Geo")
 
     # compile model
-    model.compile(loss=BinaryCrossentropy(), optimizer=Nadam(), metrics=Accuracy())
+    model.compile(loss=BinaryCrossentropy(), optimizer=Nadam(), metrics=["accuracy"])
 
     return model
-
-
-if __name__ == "__main__":
-    target_size = [224, 224]
-    model = build_model(target_size)
-    model.summary()

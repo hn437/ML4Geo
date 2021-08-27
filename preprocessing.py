@@ -32,7 +32,7 @@ buil_def = {
 }
 
 
-def get_building_data(raster):
+def get_building_data(raster) -> gpd.GeoDataFrame:
     bbox = box(*raster.bounds)
     bbox = gpd.GeoSeries([bbox]).set_crs(raster.crs).to_crs(epsg=4326).__geo_interface__
     bbox = json.dumps(bbox)
@@ -48,7 +48,7 @@ def get_building_data(raster):
     return buildings
 
 
-def get_tiles(ds, width=256, height=256):
+def get_tiles(ds, width=256, height=256) -> tuple:
     ncols, nrows = ds.meta["width"], ds.meta["height"]
     offsets = product(range(0, ncols, width), range(0, nrows, height))
     big_window = windows.Window(col_off=0, row_off=0, width=ncols, height=nrows)
@@ -60,7 +60,7 @@ def get_tiles(ds, width=256, height=256):
         yield window, transform
 
 
-def generate_mask(raster, vector):
+def generate_mask(raster, vector) -> None:
     if os.path.exists(os.path.join(INTERMEDIATE_PATH, "masked_raster.tif")):
         os.remove(os.path.join(INTERMEDIATE_PATH, "masked_raster.tif"))
     out_meta = raster.meta.copy()
@@ -112,7 +112,7 @@ def generate_mask(raster, vector):
                 outds.write(out_image, window=window)
 
 
-def crop_and_save(raster, bbox_feature, path, counter):
+def crop_and_save(raster, bbox_feature, path, counter) -> bool:
     cropped_raster = mask.mask(raster, bbox_feature, crop=True)
     if len(cropped_raster[0].shape) == 3 and np.sum(cropped_raster[0]) == 0:
         return False
@@ -131,7 +131,7 @@ def crop_and_save(raster, bbox_feature, path, counter):
     return True
 
 
-def create_ml_data(raster, r_mask, vector):
+def create_ml_data(raster, r_mask, vector) -> None:
     feature_count = len(vector)
     counter_failed_crops = 0
     for index, row in vector.iterrows():
@@ -161,7 +161,7 @@ def create_ml_data(raster, r_mask, vector):
         logger.info(f"Cropping failed for {counter_failed_crops} buildings")
 
 
-def preprocessing():
+def preprocessing_data() -> None:
     raster = rasterio.open(RASTER_PATH)
 
     logger.info("Query buildings...")
@@ -178,4 +178,4 @@ def preprocessing():
 
 
 if __name__ == "__main__":
-    preprocessing()
+    preprocessing_data()

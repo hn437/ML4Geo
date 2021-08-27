@@ -7,7 +7,7 @@ from main import BATCH_SIZE, EPOCH, TARGET_SIZE
 from model import build_model, get_generator
 
 
-def unet():
+def unet_fit():
     logger.info("Setting up generator...")
     train_gen, test_gen, no_of_trainsets, no_of_validsets = get_generator(
         batch_size=BATCH_SIZE, target_size=TARGET_SIZE
@@ -32,7 +32,8 @@ def unet():
     plt.legend()
     plt.tight_layout()
     plt.savefig(os.path.join(INTERMEDIATE_PATH, "Progress_per_Epoch.png"))
+    logger.info("Fitting progress saved in png-File.")
 
 
 if __name__ == "__main__":
-    unet()
+    unet_fit()

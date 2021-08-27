@@ -1,14 +1,13 @@
 import os
 
 import matplotlib.pyplot as plt
-import tensorflow.python.keras.callbacks
 
 from definitions import INTERMEDIATE_PATH, logger
 from main import BATCH_SIZE, EPOCH, TARGET_SIZE
 from model import build_model, get_generator
 
 
-def plot_fit_progress(history: tensorflow.python.keras.callbacks.History) -> None:
+def plot_fit_progress(history) -> None:
     plt.figure()
     plt.plot(range(EPOCH), history.history["accuracy"], label="Training Accuracy")
     plt.plot(range(EPOCH), history.history["val_accuracy"], label="Validation Accuracy")

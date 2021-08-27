@@ -36,6 +36,7 @@ def get_generator(batch_size, target_size):
         class_mode=None,
         target_size=target_size,
         seed=seed,
+        shuffle=True,
     )
     train_generator_mask = gen_train_mask.flow_from_directory(
         TRAINING_PATH,
@@ -44,6 +45,7 @@ def get_generator(batch_size, target_size):
         class_mode=None,
         target_size=target_size,
         seed=seed,
+        shuffle=True,
     )
     no_of_trainsets = train_generator_img.samples
     TRAIN_GENERATOR = zip(

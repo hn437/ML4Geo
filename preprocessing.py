@@ -102,12 +102,12 @@ def generate_mask(raster, vector) -> None:
 
         if os.path.exists(os.path.join(INTERMEDIATE_PATH, "masked_raster.tif")):
             with rasterio.open(
-                os.path.join(INTERMEDIATE_PATH, "masked_raster.tif"), "r+", **out_meta
+                os.path.join(INTERMEDIATE_PATH, "masked_raster.tif"), "r+", BIGTIFF="YES", **out_meta
             ) as outds:
                 outds.write(out_image, window=window)
         else:
             with rasterio.open(
-                os.path.join(INTERMEDIATE_PATH, "masked_raster.tif"), "w", **out_meta
+                os.path.join(INTERMEDIATE_PATH, "masked_raster.tif"), "w", BIGTIFF="YES", **out_meta
             ) as outds:
                 outds.write(out_image, window=window)
 

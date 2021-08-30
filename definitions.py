@@ -10,7 +10,7 @@ import yaml
 
 OHSOME_API = os.getenv("OHSOME_API", default="https://api.ohsome.org/v1/")
 DATA_PATH = "./data"
-RASTER_PATH = os.path.join(DATA_PATH, "testRaster_small.tif")
+RASTER_PATH = os.path.join(DATA_PATH, "ml4geo_raster.tif")
 
 TRAINING_PATH = os.path.join(DATA_PATH, "training_data")
 TRAINING_PATH_IMG = os.path.join(TRAINING_PATH, "img")

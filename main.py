@@ -3,8 +3,8 @@ from definitions import logger
 # SCRIPT SETTINGS:
 
 DATA_PROCESSING = True
-TILE_WIDTH = 2052
-TILE_HEIGHT = 2052
+TILE_WIDTH = 25600
+TILE_HEIGHT = 25600
 
 
 # ML VARIABLES:
@@ -31,5 +31,5 @@ def main(mode: str) -> None:
 
 if __name__ == "__main__":
     working_mode = "Preprocessing"
-    working_mode = "Unet"
+    #working_mode = "Unet"
     main(working_mode)

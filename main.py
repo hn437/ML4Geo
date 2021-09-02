@@ -22,13 +22,25 @@ def main(mode: str) -> None:
     elif mode == "Unet":
         import unet
 
-        logger.info("Working Mode: Train the model")
+        logger.info("Working Mode: Train the model and predict")
+        unet.unet_execution()
+    elif mode == "Complete":
+        import preprocessing
+        import unet
+
+        logger.info("Working Mode: Complete run, including preprocessing training and predicting")
+
+        logger.info("Doing the preprocessing")
+        preprocessing.preprocessing_data()
+
+        logger.info("Training the model and predict the raster")
         unet.unet_execution()
     else:
         raise ValueError("Working mode not correctly set")
 
 
 if __name__ == "__main__":
-    working_mode = "Preprocessing"
+    #working_mode = "Preprocessing"
     #working_mode = "Unet"
+    working_mode = "Complete"
     main(working_mode)

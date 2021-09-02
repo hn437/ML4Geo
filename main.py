@@ -2,7 +2,6 @@ from definitions import logger
 
 # SCRIPT SETTINGS:
 
-DATA_PROCESSING = True
 TILE_WIDTH = 25600
 TILE_HEIGHT = 25600
 
@@ -24,7 +23,7 @@ def main(mode: str) -> None:
         import unet
 
         logger.info("Working Mode: Train the model")
-        unet.unet_fit()
+        unet.unet_execution()
     else:
         raise ValueError("Working mode not correctly set")
 

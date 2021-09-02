@@ -1,5 +1,8 @@
 from definitions import logger
 
+import preprocessing
+import unet
+
 # SCRIPT SETTINGS:
 
 TILE_WIDTH = 25600
@@ -8,26 +11,19 @@ TILE_HEIGHT = 25600
 
 # ML VARIABLES:
 
-EPOCH = 5
+EPOCH = 2
 BATCH_SIZE = 2
 TARGET_SIZE = [224, 224]
 
 
 def main(mode: str) -> None:
     if mode == "Preprocessing":
-        import preprocessing
-
         logger.info("Working Mode: Preprocess the data")
         preprocessing.preprocessing_data()
     elif mode == "Unet":
-        import unet
-
         logger.info("Working Mode: Train the model and predict")
         unet.unet_execution()
     elif mode == "Complete":
-        import preprocessing
-        import unet
-
         logger.info("Working Mode: Complete run, including preprocessing training and predicting")
 
         logger.info("Doing the preprocessing")

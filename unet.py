@@ -20,8 +20,10 @@ def plot_fit_progress(history) -> None:
     plt.plot(range(EPOCH), history.history["accuracy"], label="Training Accuracy")
     plt.plot(range(EPOCH), history.history["val_accuracy"], label="Validation Accuracy")
     plt.legend()
+    plt.title('Progress per Epoch')
     plt.tight_layout()
     plt.savefig(os.path.join(INTERMEDIATE_PATH, "Progress_per_Epoch.png"))
+    plt.close()
     logger.info("Fitting progress saved in png-File.")
 
 
@@ -44,17 +46,17 @@ def determine_class_threshold() -> tuple:
         mask_total = np.concatenate((mask_total, mask))
         pred_total = np.concatenate((pred_total, predictions))
 
-        percentage = int((counter_processed_files + 1) / no_of_validsets * 100)
-        sys.stdout.write(f"\r Progress: {percentage} %. - {counter_processed_files} of {no_of_validsets} files predicted.")
-        sys.stdout.flush()
         counter_processed_files += BATCH_SIZE
+        percentage = int((counter_processed_files + 1) / no_of_validsets * 100)
+        sys.stdout.write(f"\r Progress: {percentage} %. - {counter_processed_files} of {no_of_validsets} files predicted for validation.")
+        sys.stdout.flush()
         if counter_processed_files >= no_of_validsets:
             break
 
     with open(os.path.join(RESULT_PATH, "ground_truth.json"), "w") as file:
-        json.dump(mask_total, file)
+        json.dump(mask_total.tolist(), file)
     with open(os.path.join(RESULT_PATH, "prediction.json"), "w") as file:
-        json.dump(pred_total, file)
+        json.dump(pred_total.tolist(), file)
 
     fpr_total, tpr_total, thresholds_batch = roc_curve(mask_total, pred_total)
     auc_keras = auc(fpr_total, tpr_total)
@@ -65,7 +67,7 @@ def determine_class_threshold() -> tuple:
     idx = np.argmin(d)
 
     threshold = thresholds_batch[idx]
-    print("Optimum threshold:", threshold)
+    print("\nOptimum threshold:", threshold)
     update_json("threshold", threshold)
 
     plt.figure(1)
@@ -76,7 +78,9 @@ def determine_class_threshold() -> tuple:
     plt.ylabel('True positive rate')
     plt.title('ROC curve')
     plt.legend(loc='best')
+    plt.tight_layout()
     plt.savefig(os.path.join(INTERMEDIATE_PATH, "ROC.png"))
+    plt.close()
 
     return threshold, mask_total, pred_total
 
@@ -124,11 +128,29 @@ def predict_raster() -> None:
     model.load_weights(os.path.join(RESULT_PATH, "weights.h5"))
 
     for window, transform in get_tiles(raster, TARGET_SIZE[0], TARGET_SIZE[1]):
-        tile_data = raster.read(window=window)
+        padding_mode = False
+        tile_data = raster.read(window=window, boundless=True, fill_value=raster.nodata)
+        if tile_data.shape[1] < TARGET_SIZE[0]:
+            orig_tile_size = tile_data.shape
+            t = TARGET_SIZE[0] - tile_data.shape[1]
+            tile_data = np.pad(tile_data, ((0, 0), (0, t), (0, 0)), constant_values=0)
+            padding_mode = True
+        elif tile_data.shape[2] < TARGET_SIZE[1]:
+            orig_tile_size = tile_data.shape
+            t = TARGET_SIZE[1] - tile_data.shape[2]
+            tile_data = np.pad(tile_data, ((0, 0), (0, 0), (0, t)), constant_values=0)
+            padding_mode = True
+
+        tile_data = np.moveaxis(tile_data, 0, 2)
         tile_data = tf.expand_dims(tile_data, axis=0)
         predicted_tile = model.predict(tile_data, batch_size=1, workers=7)
         predicted_tile = np.where(predicted_tile < threshold, 0, 1)
         predicted_tile = tf.squeeze(predicted_tile, axis=0)
+        predicted_tile = np.moveaxis(predicted_tile, 2, 0)
+
+        if padding_mode is True:
+            predicted_tile = predicted_tile[:, 0:orig_tile_size[1], 0: orig_tile_size[2]]
+
         if os.path.exists(os.path.join(RESULT_PATH, "predicted_raster.tif")):
             with rasterio.open(
                 os.path.join(RESULT_PATH, "predicted_raster.tif"), "r+", BIGTIFF="YES", **out_meta
@@ -153,9 +175,9 @@ def unet_fit() -> None:
     history = model.fit(
         train_gen,
         validation_data=test_gen,
-        steps_per_epoch=10,#(no_of_trainsets // BATCH_SIZE),
+        steps_per_epoch=(no_of_trainsets // BATCH_SIZE),
         epochs=EPOCH,
-        validation_steps=10,#(no_of_validsets // BATCH_SIZE), #TODO change back
+        validation_steps=(no_of_validsets // BATCH_SIZE),
         workers=7,
         use_multiprocessing=False
     )
@@ -163,9 +185,6 @@ def unet_fit() -> None:
     logger.info("Model weights saved!")
 
     plot_fit_progress(history)
-
-    determine_class_threshold()
-    unet_evaluate()
 
 
 def unet_execution() -> None:

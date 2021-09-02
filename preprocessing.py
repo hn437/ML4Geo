@@ -1,15 +1,16 @@
 import json
 import os
 import sys
-from itertools import product
+
 
 import geopandas as gpd
 import numpy as np
 import rasterio
-from rasterio import mask, windows
+from rasterio import mask
 from shapely.geometry import box
 from skimage.filters import median
 from skimage.morphology import disk
+from utils import get_tiles
 
 from definitions import (
     INTERMEDIATE_PATH,
@@ -46,18 +47,6 @@ def get_building_data(raster) -> gpd.GeoDataFrame:
         os.path.join(INTERMEDIATE_PATH, "buildings.geojson"), driver="GeoJSON"
     )
     return buildings
-
-
-def get_tiles(ds, width=256, height=256) -> tuple:
-    ncols, nrows = ds.meta["width"], ds.meta["height"]
-    offsets = product(range(0, ncols, width), range(0, nrows, height))
-    big_window = windows.Window(col_off=0, row_off=0, width=ncols, height=nrows)
-    for col_off, row_off in offsets:
-        window = windows.Window(
-            col_off=col_off, row_off=row_off, width=width, height=height
-        ).intersection(big_window)
-        transform = windows.transform(window, ds.transform)
-        yield window, transform
 
 
 def generate_mask(raster, vector) -> None:

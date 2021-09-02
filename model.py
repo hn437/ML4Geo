@@ -19,6 +19,7 @@ def get_generator(batch_size, target_size):
         shear_range=0.2,
         zoom_range=0.2,
         horizontal_flip=True,
+        data_format="channels_first"
     )
     gen_train_mask = ImageDataGenerator(
         rotation_range=40,
@@ -27,6 +28,7 @@ def get_generator(batch_size, target_size):
         shear_range=0.2,
         zoom_range=0.2,
         horizontal_flip=True,
+        data_format="channels_first"
     )
 
     train_generator_img = gen_train_img.flow_from_directory(
@@ -53,8 +55,8 @@ def get_generator(batch_size, target_size):
         train_generator_img, train_generator_mask
     )  # combine into one to yield both at the same time
 
-    gen_test_img = ImageDataGenerator(rescale=1.0 / 255.0)
-    gen_test_mask = ImageDataGenerator()
+    gen_test_img = ImageDataGenerator(rescale=1.0 / 255.0, data_format="channels_first")
+    gen_test_mask = ImageDataGenerator(data_format="channels_first")
     test_generator_img = gen_test_img.flow_from_directory(
         TEST_PATH,
         classes=["img"],

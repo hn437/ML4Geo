@@ -135,7 +135,7 @@ def predict_raster() -> None:
             t = TARGET_SIZE[0] - tile_data.shape[1]
             tile_data = np.pad(tile_data, ((0, 0), (0, t), (0, 0)), constant_values=0)
             padding_mode = True
-        elif tile_data.shape[2] < TARGET_SIZE[1]:
+        if tile_data.shape[2] < TARGET_SIZE[1]:
             orig_tile_size = tile_data.shape
             t = TARGET_SIZE[1] - tile_data.shape[2]
             tile_data = np.pad(tile_data, ((0, 0), (0, 0), (0, t)), constant_values=0)

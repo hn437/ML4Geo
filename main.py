@@ -9,7 +9,7 @@ TILE_HEIGHT = 25600
 
 # ML VARIABLES:
 
-EPOCH = 2
+EPOCH = 15
 BATCH_SIZE = 2
 TARGET_SIZE = [224, 224]
 
@@ -39,6 +39,6 @@ def main(mode: str) -> None:
 
 if __name__ == "__main__":
     #working_mode = "Preprocessing"
-    #working_mode = "Unet"
-    working_mode = "Complete"
+    working_mode = "Unet"
+    #working_mode = "Complete"
     main(working_mode)

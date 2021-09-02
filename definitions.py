@@ -19,6 +19,7 @@ TEST_PATH = os.path.join(DATA_PATH, "test_data")
 TEST_PATH_IMG = os.path.join(TEST_PATH, "img")
 TEST_PATH_MASK = os.path.join(TEST_PATH, "mask")
 INTERMEDIATE_PATH = os.path.join(DATA_PATH, "intermediate_result")
+RESULT_PATH = os.path.join(DATA_PATH, "result")
 paths = [
     DATA_PATH,
     TRAINING_PATH,
@@ -28,6 +29,7 @@ paths = [
     TEST_PATH_IMG,
     TEST_PATH_MASK,
     INTERMEDIATE_PATH,
+    RESULT_PATH,
 ]
 
 for path in paths:

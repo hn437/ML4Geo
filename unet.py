@@ -123,12 +123,10 @@ def predict_raster() -> None:
 
     for window, transform in get_tiles(raster, TARGET_SIZE[0], TARGET_SIZE[1]):
         tile_data = raster.read(window=window)
-        tile_data = np.moveaxis(tile_data, 0, 2)
         tile_data = tf.expand_dims(tile_data, axis=0)
         predicted_tile = model.predict(tile_data, batch_size=1, workers=7)
         predicted_tile = np.where(predicted_tile < threshold, 0, 1)
         predicted_tile = tf.squeeze(predicted_tile, axis=0)
-        predicted_tile = np.moveaxis(predicted_tile, 2, 0)
         if os.path.exists(os.path.join(RESULT_PATH, "predicted_raster.tif")):
             with rasterio.open(
                 os.path.join(RESULT_PATH, "predicted_raster.tif"), "r+", BIGTIFF="YES", **out_meta

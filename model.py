@@ -7,30 +7,6 @@ from tensorflow.keras.preprocessing.image import ImageDataGenerator
 
 from definitions import TEST_PATH, TRAINING_PATH, TRAINING_PATH_IMG
 
-def get_generator_test(batch_size, target_size):
-    seed = 42
-    gen_test_img = ImageDataGenerator(rescale=1.0 / 255.0)
-    gen_test_mask = ImageDataGenerator()
-    test_generator_img = gen_test_img.flow_from_directory(
-        TEST_PATH,
-        classes=["img"],
-        batch_size=batch_size,
-        class_mode=None,
-        target_size=target_size,
-        seed=seed,
-        shuffle=False,
-    )
-    test_generator_mask = gen_test_mask.flow_from_directory(
-        TEST_PATH,
-        classes=["mask"],
-        batch_size=batch_size,
-        class_mode=None,
-        target_size=target_size,
-        seed=seed,
-        shuffle=False,
-    )
-    no_of_validsets = test_generator_img.samples
-    return test_generator_img, test_generator_mask
 
 ## generator
 def get_generator(batch_size, target_size):
@@ -70,6 +46,7 @@ def get_generator(batch_size, target_size):
         target_size=target_size,
         seed=seed,
         shuffle=True,
+        color_mode="grayscale"
     )
     no_of_trainsets = train_generator_img.samples
     TRAIN_GENERATOR = zip(
@@ -95,6 +72,7 @@ def get_generator(batch_size, target_size):
         target_size=target_size,
         seed=seed,
         shuffle=False,
+        color_mode="grayscale"
     )
     no_of_validsets = test_generator_img.samples
     TEST_GENERATOR = zip(test_generator_img, test_generator_mask)

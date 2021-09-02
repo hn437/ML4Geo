@@ -5,10 +5,10 @@ import tensorflow as tf
 import json
 import numpy as np
 import matplotlib.pyplot as plt
-from sklearn.metrics import confusion_matrix, roc_auc_score, plot_roc_curve, roc_curve, auc
+from sklearn.metrics import confusion_matrix, classification_report, roc_curve, auc
 from scipy.spatial.distance import cdist
 
-from definitions import INTERMEDIATE_PATH, TEST_PATH_IMG, logger, RESULT_PATH, RASTER_PATH
+from definitions import INTERMEDIATE_PATH, logger, RESULT_PATH, RASTER_PATH
 from utils import update_json, get_tiles
 from main import BATCH_SIZE, EPOCH, TARGET_SIZE
 from model import build_model, get_generator
@@ -92,6 +92,8 @@ def unet_evaluate() -> None:
     FN = cm[1][0]
     TN = cm[1][1]
 
+    print(classification_report(mask_total, pred_total))
+
     precision = TP / (TP + FP)
     recall = TP / (TP + FN)
     accuracy = (TP + TN) / (TP + TN + FP + FN)
@@ -167,8 +169,8 @@ def unet_fit() -> None:
 
 
 def unet_execution() -> None:
-    #unet_fit()
-    #unet_evaluate()
+    unet_fit()
+    unet_evaluate()
     predict_raster()
 
 

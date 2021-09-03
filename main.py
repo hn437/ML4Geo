@@ -1,5 +1,7 @@
 from definitions import logger
 
+import preprocessing
+import unet
 
 # SCRIPT SETTINGS:
 
@@ -16,16 +18,12 @@ TARGET_SIZE = [224, 224]
 
 def main(mode: str) -> None:
     if mode == "Preprocessing":
-        import preprocessing
         logger.info("Working Mode: Preprocess the data")
         preprocessing.preprocessing_data()
     elif mode == "Unet":
-        import unet
         logger.info("Working Mode: Train the model and predict")
         unet.unet_execution()
     elif mode == "Complete":
-        import preprocessing
-        import unet
         logger.info("Working Mode: Complete run, including preprocessing training and predicting")
 
         logger.info("Doing the preprocessing")
@@ -39,6 +37,6 @@ def main(mode: str) -> None:
 
 if __name__ == "__main__":
     #working_mode = "Preprocessing"
-    working_mode = "Unet"
-    #working_mode = "Complete"
+    #working_mode = "Unet"
+    working_mode = "Complete"
     main(working_mode)

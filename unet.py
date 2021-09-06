@@ -1,14 +1,19 @@
 import os
 import sys
+import math
 
 import tensorflow as tf
+from tensorflow.keras.callbacks import ModelCheckpoint
 import json
 import numpy as np
 import matplotlib.pyplot as plt
 from sklearn.metrics import confusion_matrix, classification_report, roc_curve, auc
 from scipy.spatial.distance import cdist
 
-from definitions import INTERMEDIATE_PATH, logger, RESULT_PATH, RASTER_PATH
+import logging
+from tqdm import tqdm
+import datetime
+from definitions import INTERMEDIATE_PATH, logger, RESULT_PATH, RASTER_PATH, DATA_PATH
 from utils import update_json, get_tiles
 from main import BATCH_SIZE, EPOCH, TARGET_SIZE
 from model import build_model, get_generator
@@ -39,7 +44,7 @@ def determine_class_threshold() -> tuple:
     mask_total = np.array([])
     pred_total = np.array([])
 
-    for image, mask in test_gen:
+    for image, mask in tqdm(test_gen, total=no_of_validsets):
         predictions = model.predict(image, batch_size=1, workers=7)
         predictions = predictions.flatten()
         mask = mask.flatten()
@@ -47,9 +52,6 @@ def determine_class_threshold() -> tuple:
         pred_total = np.concatenate((pred_total, predictions))
 
         counter_processed_files += BATCH_SIZE
-        percentage = int((counter_processed_files + 1) / no_of_validsets * 100)
-        sys.stdout.write(f"\r Progress: {percentage} %. - {counter_processed_files} of {no_of_validsets} files predicted for validation.")
-        sys.stdout.flush()
         if counter_processed_files >= no_of_validsets:
             break
 
@@ -72,8 +74,9 @@ def determine_class_threshold() -> tuple:
 
     plt.figure(1)
     plt.plot([0, 1], [0, 1], 'k--')
-    plt.plot(fpr_total, tpr_total, label='Keras (area = {:.3f})'.format(auc_keras))
-    plt.scatter(y[idx][0], y[idx][1], c="black")
+    plt.plot(fpr_total, tpr_total, label="Keras (area = {:.3f})".format(auc_keras))
+    plt.scatter(y[idx][0], y[idx][1], c="black", label=f"Optimum Threshold ({threshold})")
+    plt.text(y[idx][0], y[idx][0], f"{threshold}")
     plt.xlabel('False positive rate')
     plt.ylabel('True positive rate')
     plt.title('ROC curve')
@@ -121,15 +124,25 @@ def predict_raster() -> None:
         {
             "driver": "GTiff",
             "count": int(1),
+            "dtype": "uint8",
+            "compress": "lzw",
+            "nodata": 0
         }
     )
 
     model = build_model(target_size=TARGET_SIZE)
     model.load_weights(os.path.join(RESULT_PATH, "weights.h5"))
 
-    for window, transform in get_tiles(raster, TARGET_SIZE[0], TARGET_SIZE[1]):
+    tiles_to_be_predicted = math.ceil((out_meta["width"] * out_meta["height"]) /(TARGET_SIZE[0] * TARGET_SIZE[1]))
+
+    rasterio_logger = rasterio.logging.getLogger()
+    rasterio_logger.setLevel(logging.ERROR)
+    logger.setLevel(logging.ERROR)
+
+    for window, transform in tqdm(get_tiles(raster, TARGET_SIZE[0], TARGET_SIZE[1]), total=tiles_to_be_predicted):
         padding_mode = False
         tile_data = raster.read(window=window, boundless=True, fill_value=raster.nodata)
+        tile_data = tile_data * (1.0 / 255.0)
         if tile_data.shape[1] < TARGET_SIZE[0]:
             orig_tile_size = tile_data.shape
             t = TARGET_SIZE[0] - tile_data.shape[1]
@@ -161,6 +174,7 @@ def predict_raster() -> None:
                 os.path.join(RESULT_PATH, "predicted_raster.tif"), "w", BIGTIFF="YES", **out_meta
             ) as outds:
                 outds.write(predicted_tile, window=window)
+    logger.setLevel(logging.INFO)
 
 
 def unet_fit() -> None:
@@ -171,6 +185,13 @@ def unet_fit() -> None:
     # Build model and compile
     model = build_model(target_size=TARGET_SIZE)
 
+    # training logging
+    logdir = os.path.join(DATA_PATH, "logs") + datetime.now().strftime("%Y%m%d-%H%M%S")
+    tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=logdir, histogram_freq=1)
+    # checkpoint
+    checkpoint = ModelCheckpoint(os.path.join(logdir, "checkpoint"), monitor='val_accuracy', save_best_only=True,
+                                 mode='max')
+
     logger.info("Fit model...")
     history = model.fit(
         train_gen,
@@ -179,7 +200,8 @@ def unet_fit() -> None:
         epochs=EPOCH,
         validation_steps=(no_of_validsets // BATCH_SIZE),
         workers=7,
-        use_multiprocessing=False
+        use_multiprocessing=False,
+        callbacks=[checkpoint, tensorboard_callback],
     )
     model.save_weights(os.path.join(RESULT_PATH, "weights.h5"))
     logger.info("Model weights saved!")
@@ -188,8 +210,8 @@ def unet_fit() -> None:
 
 
 def unet_execution() -> None:
-    unet_fit()
-    unet_evaluate()
+    #unet_fit()
+    #unet_evaluate()
     predict_raster()
 
 

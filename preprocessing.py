@@ -1,8 +1,10 @@
 import json
+import math
 import os
 import sys
 
 
+from tqdm import tqdm
 import geopandas as gpd
 import numpy as np
 import rasterio
@@ -60,7 +62,8 @@ def generate_mask(raster, vector) -> None:
         }
     )
 
-    for window, transform in get_tiles(raster, TILE_WIDTH, TILE_HEIGHT):
+    tiles_needed = math.ceil((out_meta["width"] * out_meta["height"]) /(TILE_WIDTH * TILE_HEIGHT))
+    for window, transform in tqdm(get_tiles(raster, TILE_WIDTH, TILE_HEIGHT), total=tiles_needed):
         meta_tile = raster.meta.copy()
         meta_tile["transform"] = transform
         meta_tile["width"], meta_tile["height"] = window.width, window.height
@@ -123,12 +126,7 @@ def crop_and_save(raster, bbox_feature, path, counter) -> bool:
 def create_ml_data(raster, r_mask, vector) -> None:
     feature_count = len(vector)
     counter_failed_crops = 0
-    for index, row in vector.iterrows():
-        if index % 100 == 0:
-            percentage = int((index + 1) / feature_count * 100)
-            sys.stdout.write(f"\r Progress: {percentage} %")
-            sys.stdout.flush()
-
+    for index, row in tqdm(vector.iterrows(), total=feature_count):
         bbox_feature = box(*row)
         bbox_feature = gpd.GeoSeries([bbox_feature])
 

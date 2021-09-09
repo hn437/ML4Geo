@@ -12,12 +12,16 @@ OHSOME_API = os.getenv("OHSOME_API", default="https://api.ohsome.org/v1/")
 DATA_PATH = "./data"
 RASTER_PATH = os.path.join(DATA_PATH, "ml4geo_raster.tif")
 
+PREDICT_PATH = os.path.join(DATA_PATH, "predict")
 TRAINING_PATH = os.path.join(DATA_PATH, "training_data")
 TRAINING_PATH_IMG = os.path.join(TRAINING_PATH, "img")
 TRAINING_PATH_MASK = os.path.join(TRAINING_PATH, "mask")
 TEST_PATH = os.path.join(DATA_PATH, "test_data")
 TEST_PATH_IMG = os.path.join(TEST_PATH, "img")
 TEST_PATH_MASK = os.path.join(TEST_PATH, "mask")
+VALIDATION_PATH = os.path.join(DATA_PATH, "valid_data")
+VALIDATION_PATH_IMG = os.path.join(VALIDATION_PATH, "img")
+VALIDATION_PATH_MASK = os.path.join(VALIDATION_PATH, "mask")
 INTERMEDIATE_PATH = os.path.join(DATA_PATH, "intermediate_result")
 RESULT_PATH = os.path.join(DATA_PATH, "result")
 paths = [
@@ -30,6 +34,9 @@ paths = [
     TEST_PATH_MASK,
     INTERMEDIATE_PATH,
     RESULT_PATH,
+    VALIDATION_PATH,
+    VALIDATION_PATH_IMG,
+    VALIDATION_PATH_MASK,
 ]
 
 for path in paths:

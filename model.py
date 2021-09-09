@@ -1,15 +1,16 @@
-import tensorflow as tf
-from tensorflow.keras import Model, Sequential, activations, layers
+import os
+
+from tensorflow.keras import Model, layers
 from tensorflow.keras.applications.vgg16 import VGG16
 from tensorflow.keras.losses import BinaryCrossentropy
-from tensorflow.keras.optimizers import Adam, Nadam
+from tensorflow.keras.optimizers import Nadam
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
 
-from definitions import TEST_PATH, TRAINING_PATH, TRAINING_PATH_IMG
+from definitions import DATA_PATH, TRAINING_PATH
 
 
 ## generator
-def get_generator(batch_size, target_size):
+def get_generator(batch_size, target_size, mode):
     seed = 42
     gen_train_img = ImageDataGenerator(
         rescale=1.0 / 255.0,
@@ -46,17 +47,17 @@ def get_generator(batch_size, target_size):
         target_size=target_size,
         seed=seed,
         shuffle=True,
-        color_mode="grayscale"
+        color_mode="grayscale",
     )
     no_of_trainsets = train_generator_img.samples
     TRAIN_GENERATOR = zip(
         train_generator_img, train_generator_mask
     )  # combine into one to yield both at the same time
-
+    PATH = os.path.join(DATA_PATH, mode)
     gen_test_img = ImageDataGenerator(rescale=1.0 / 255.0)
     gen_test_mask = ImageDataGenerator()
     test_generator_img = gen_test_img.flow_from_directory(
-        TEST_PATH,
+        PATH,
         classes=["img"],
         batch_size=batch_size,
         class_mode=None,
@@ -65,18 +66,18 @@ def get_generator(batch_size, target_size):
         shuffle=False,
     )
     test_generator_mask = gen_test_mask.flow_from_directory(
-        TEST_PATH,
+        PATH,
         classes=["mask"],
         batch_size=batch_size,
         class_mode=None,
         target_size=target_size,
         seed=seed,
         shuffle=False,
-        color_mode="grayscale"
+        color_mode="grayscale",
     )
-    no_of_validsets = test_generator_img.samples
+    no_of_testsets = test_generator_img.samples
     TEST_GENERATOR = zip(test_generator_img, test_generator_mask)
-    return TRAIN_GENERATOR, TEST_GENERATOR, no_of_trainsets, no_of_validsets
+    return TRAIN_GENERATOR, TEST_GENERATOR, no_of_trainsets, no_of_testsets
 
 
 ## cnn

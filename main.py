@@ -3,15 +3,16 @@ from definitions import logger
 
 # SCRIPT SETTINGS:
 
+NEW_WORKFLOW = True
 TILE_WIDTH = 25600
 TILE_HEIGHT = 25600
 
 
 # ML VARIABLES:
 
-EPOCH = 15
-BATCH_SIZE = 2
-TARGET_SIZE = [224, 224]
+EPOCH = 100
+BATCH_SIZE = 10
+TARGET_SIZE = [256, 256]
 
 
 def main(mode: str) -> None:

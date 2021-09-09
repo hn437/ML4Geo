@@ -1,10 +1,7 @@
 import json
 import math
 import os
-import sys
 
-
-from tqdm import tqdm
 import geopandas as gpd
 import numpy as np
 import rasterio
@@ -12,25 +9,28 @@ from rasterio import mask
 from shapely.geometry import box
 from skimage.filters import median
 from skimage.morphology import disk
-from utils import get_tiles
+from tqdm import tqdm
 
 from definitions import (
     INTERMEDIATE_PATH,
     RASTER_PATH,
+    TEST_PATH,
     TEST_PATH_IMG,
     TEST_PATH_MASK,
+    TRAINING_PATH,
     TRAINING_PATH_IMG,
     TRAINING_PATH_MASK,
+    VALIDATION_PATH,
     logger,
 )
-from main import TILE_HEIGHT, TILE_WIDTH
-from utils import query
+from main import NEW_WORKFLOW, TARGET_SIZE, TILE_HEIGHT, TILE_WIDTH
+from utils import get_tiles, query, write_raster_window
 
 buil_def = {
     "description": "All Buildings in an Area",
     "endpoint": "elements/geometry",
     "filter": """
-         building = * and geometry:polygon
+         building = * and geometry:polygon and building != roof
     """,
 }
 
@@ -62,8 +62,12 @@ def generate_mask(raster, vector) -> None:
         }
     )
 
-    tiles_needed = math.ceil((out_meta["width"] * out_meta["height"]) /(TILE_WIDTH * TILE_HEIGHT))
-    for window, transform in tqdm(get_tiles(raster, TILE_WIDTH, TILE_HEIGHT), total=tiles_needed):
+    tiles_needed = math.ceil(
+        (out_meta["width"] * out_meta["height"]) / (TILE_WIDTH * TILE_HEIGHT)
+    )
+    for window, transform in tqdm(
+        get_tiles(raster, TILE_WIDTH, TILE_HEIGHT), total=tiles_needed
+    ):
         meta_tile = raster.meta.copy()
         meta_tile["transform"] = transform
         meta_tile["width"], meta_tile["height"] = window.width, window.height
@@ -94,17 +98,24 @@ def generate_mask(raster, vector) -> None:
 
         if os.path.exists(os.path.join(INTERMEDIATE_PATH, "masked_raster.tif")):
             with rasterio.open(
-                os.path.join(INTERMEDIATE_PATH, "masked_raster.tif"), "r+", BIGTIFF="YES", **out_meta
+                os.path.join(INTERMEDIATE_PATH, "masked_raster.tif"),
+                "r+",
+                BIGTIFF="YES",
+                **out_meta,
             ) as outds:
                 outds.write(out_image, window=window)
         else:
             with rasterio.open(
-                os.path.join(INTERMEDIATE_PATH, "masked_raster.tif"), "w", BIGTIFF="YES", **out_meta
+                os.path.join(INTERMEDIATE_PATH, "masked_raster.tif"),
+                "w",
+                BIGTIFF="YES",
+                **out_meta,
             ) as outds:
                 outds.write(out_image, window=window)
 
 
 def crop_and_save(raster, bbox_feature, path, counter) -> bool:
+    """Deprecated: Belongs to the old workflow"""
     cropped_raster = mask.mask(raster, bbox_feature, crop=True)
     if len(cropped_raster[0].shape) == 3 and np.sum(cropped_raster[0]) == 0:
         return False
@@ -124,6 +135,7 @@ def crop_and_save(raster, bbox_feature, path, counter) -> bool:
 
 
 def create_ml_data(raster, r_mask, vector) -> None:
+    """Deprecated: Belongs to the old workflow"""
     feature_count = len(vector)
     counter_failed_crops = 0
     for index, row in tqdm(vector.iterrows(), total=feature_count):
@@ -148,6 +160,31 @@ def create_ml_data(raster, r_mask, vector) -> None:
         logger.info(f"Cropping failed for {counter_failed_crops} buildings")
 
 
+def create_ml_tiles(raster, r_mask) -> None:
+    tiles_to_be_created = math.ceil(
+        (raster.meta["width"] * raster.meta["height"])
+        / (TARGET_SIZE[0] * TARGET_SIZE[1])
+    )
+    counter_successful = 0
+    for window, transform in tqdm(
+        get_tiles(raster, TARGET_SIZE[0], TARGET_SIZE[1]), total=tiles_to_be_created
+    ):
+        if counter_successful % 10 == 0 and counter_successful != 0:
+            output_path = VALIDATION_PATH
+        elif counter_successful % 5 == 0 and counter_successful != 0:
+            output_path = TEST_PATH
+        else:
+            output_path = TRAINING_PATH
+        result = write_raster_window(
+            raster, r_mask, window, transform, output_path, counter_successful
+        )
+        if result:
+            counter_successful += 1
+    logger.info(
+        f"\n ML Data generated! {counter_successful} of possible {tiles_to_be_created} tiles were successfully created (80% train, 10% test, 10% validation)."
+    )
+
+
 def preprocessing_data() -> None:
     raster = rasterio.open(RASTER_PATH)
 
@@ -159,9 +196,14 @@ def preprocessing_data() -> None:
     generate_mask(raster, buildings["geometry"])
     logger.info("Mask written")
     r_mask = rasterio.open(os.path.join(INTERMEDIATE_PATH, "masked_raster.tif"))
-    bounds = buildings.bounds
+
     logger.info("Create data for ML")
-    create_ml_data(raster, r_mask, bounds)
+
+    if not NEW_WORKFLOW:
+        bounds = buildings.bounds
+        create_ml_data(raster, r_mask, bounds)
+    else:
+        create_ml_tiles(raster, r_mask)
 
 
 if __name__ == "__main__":

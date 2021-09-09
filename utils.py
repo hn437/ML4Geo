@@ -1,13 +1,15 @@
-import datetime
-import os
-from typing import Dict
 import json
-
-import requests
+import os
 from itertools import product
+from typing import Dict
+
+import numpy as np
+import rasterio
+import requests
 from rasterio import windows
 
-from definitions import OHSOME_API, logger, RESULT_PATH
+from definitions import OHSOME_API, RESULT_PATH, logger
+from main import TARGET_SIZE
 
 
 def query(request: Dict, bpolys: str, properties: str = None) -> Dict:
@@ -53,3 +55,55 @@ def get_tiles(ds, width=256, height=256) -> tuple:
         ).intersection(big_window)
         transform = windows.transform(window, ds.transform)
         yield window, transform
+
+
+def write_raster_window(raster, r_mask, window, transform, path, counter) -> bool:
+    tiledata_img = raster.read(window=window)
+    tiledata_mask = r_mask.read(window=window)
+    if (len(tiledata_img.shape) == 3 and np.sum(tiledata_img) == 0) or np.sum(
+        tiledata_mask[0]
+    ) == 0:
+        return False
+
+    if tiledata_img.shape[1] < TARGET_SIZE[0]:
+        t = TARGET_SIZE[0] - tiledata_img.shape[1]
+        tiledata_img = np.pad(tiledata_img, ((0, 0), (0, t), (0, 0)), constant_values=0)
+        tiledata_mask = np.pad(
+            tiledata_mask, ((0, 0), (0, t), (0, 0)), constant_values=0
+        )
+    if tiledata_img.shape[2] < TARGET_SIZE[1]:
+        t = TARGET_SIZE[1] - tiledata_img.shape[2]
+        tiledata_img = np.pad(tiledata_img, ((0, 0), (0, 0), (0, t)), constant_values=0)
+        tiledata_mask = np.pad(
+            tiledata_mask, ((0, 0), (0, 0), (0, t)), constant_values=0
+        )
+
+    meta_tile_img = raster.meta.copy()
+    meta_tile_img.update(
+        {
+            "height": TARGET_SIZE[0],
+            "width": TARGET_SIZE[1],
+            "transform": transform,
+        }
+    )
+
+    meta_tile_mask = r_mask.meta.copy()
+    meta_tile_mask.update(
+        {
+            "height": TARGET_SIZE[0],
+            "width": TARGET_SIZE[1],
+            "transform": transform,
+        }
+    )
+
+    with rasterio.open(
+        os.path.join(path, f"img/sample_{counter}.tif"), "w", **meta_tile_img
+    ) as dest:
+        dest.write(tiledata_img)
+
+    with rasterio.open(
+        os.path.join(path, f"mask/sample_{counter}.tif"), "w", **meta_tile_mask
+    ) as dest:
+        dest.write(tiledata_mask)
+
+    return True

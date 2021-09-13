@@ -102,7 +102,7 @@ def unet_evaluate(mode) -> None:
     FP = cm[0][1]
     FN = cm[1][0]
     TN = cm[1][1]
-    dict_cm = {"TP": TP, "FP": FP, "FN": FN, "TN": TN}
+    dict_cm = {"TP": int(TP), "FP": int(FP), "FN": int(FN), "TN": int(TN)}
     update_json(f"{mode}_ConfMat", dict_cm)
 
     print(

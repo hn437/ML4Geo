@@ -1,4 +1,5 @@
 import json
+import logging
 import math
 import os
 
@@ -65,6 +66,9 @@ def generate_mask(raster, vector) -> None:
     tiles_needed = math.ceil(
         (out_meta["width"] * out_meta["height"]) / (TILE_WIDTH * TILE_HEIGHT)
     )
+    rasterio_logger = rasterio.logging.getLogger()
+    rasterio_logger.setLevel(logging.ERROR)
+    logger.setLevel(logging.ERROR)
     for window, transform in tqdm(
         get_tiles(raster, TILE_WIDTH, TILE_HEIGHT), total=tiles_needed
     ):
@@ -77,20 +81,20 @@ def generate_mask(raster, vector) -> None:
             os.path.join(INTERMEDIATE_PATH, f"tile.tif"), "w", **meta_tile
         ) as dest:
             dest.write(tiledata)
-        tile = rasterio.open(os.path.join(INTERMEDIATE_PATH, f"tile.tif"))
+        with rasterio.open(os.path.join(INTERMEDIATE_PATH, f"tile.tif"), "r") as tile:
+            out_image, out_transform = mask.mask(
+                tile,
+                vector,
+                nodata=None,
+                all_touched=False,
+                invert=False,
+                filled=True,
+                crop=False,
+                pad=False,
+                pad_width=0.5,
+                indexes=None,
+            )
 
-        out_image, out_transform = mask.mask(
-            tile,
-            vector,
-            nodata=None,
-            all_touched=False,
-            invert=False,
-            filled=True,
-            crop=False,
-            pad=False,
-            pad_width=0.5,
-            indexes=None,
-        )
         out_image = np.sum(out_image, axis=0, dtype="uint8")
         out_image = np.where(out_image > 0, 1, out_image)
         out_image = median(out_image, disk(1), mode="constant", cval=0)
@@ -112,6 +116,7 @@ def generate_mask(raster, vector) -> None:
                 **out_meta,
             ) as outds:
                 outds.write(out_image, window=window)
+    logger.setLevel(logging.INFO)
 
 
 def crop_and_save(raster, bbox_feature, path, counter) -> bool:

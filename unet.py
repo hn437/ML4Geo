@@ -1,8 +1,8 @@
-from datetime import datetime
 import json
 import logging
 import math
 import os
+from datetime import datetime
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -78,7 +78,10 @@ def determine_class_threshold(mode) -> tuple:
         plt.plot([0, 1], [0, 1], "k--")
         plt.plot(fpr_total, tpr_total, label="Keras (area = {:.3f})".format(auc_keras))
         plt.scatter(
-            y[idx][0], y[idx][1], c="black", label=f"Optimum Threshold (= {round(threshold, 3)})"
+            y[idx][0],
+            y[idx][1],
+            c="black",
+            label=f"Optimum Threshold (= {round(threshold, 3)})",
         )
         plt.text(y[idx][0], y[idx][1], f"{round(threshold, 3)}")
         plt.xlabel("False positive rate")

@@ -56,11 +56,6 @@ def determine_class_threshold(mode) -> tuple:
         if counter_processed_files >= no_of_testsets:
             break
 
-    with open(os.path.join(RESULT_PATH, f"{mode}_ground_truth.json"), "w") as file:
-        json.dump(mask_total.tolist(), file)
-    with open(os.path.join(RESULT_PATH, f"{mode}_prediction.json"), "w") as file:
-        json.dump(pred_total.tolist(), file)
-
     if mode == "test":
         fpr_total, tpr_total, thresholds_batch = roc_curve(mask_total, pred_total)
         auc_keras = auc(fpr_total, tpr_total)
@@ -107,6 +102,8 @@ def unet_evaluate(mode) -> None:
     FP = cm[0][1]
     FN = cm[1][0]
     TN = cm[1][1]
+    dict_cm = {"TP": TP, "FP": FP, "FN": FN, "TN": TN}
+    update_json(f"{mode}_ConfMat", dict_cm)
 
     print(
         f"Classification Report {mode}\n", classification_report(mask_total, pred_total)

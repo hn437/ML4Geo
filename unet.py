@@ -46,7 +46,7 @@ def determine_class_threshold(mode) -> tuple:
     pred_total = np.array([])
 
     for image, mask in tqdm(test_gen, total=no_of_testsets):
-        predictions = model.predict(image, batch_size=1, workers=7)
+        predictions = model.predict(image, batch_size=1, workers=1)
         predictions = predictions.flatten()
         mask = mask.flatten()
         mask_total = np.concatenate((mask_total, mask))
@@ -172,7 +172,7 @@ def predict_raster() -> None:
         tile_data = np.moveaxis(tile_data, 0, 2)
         tile_data = tf.expand_dims(tile_data, axis=0)
 
-        predicted_tile = model.predict(tile_data, batch_size=1, workers=7)
+        predicted_tile = model.predict(tile_data, batch_size=1, workers=1)
         predicted_tile = np.where(predicted_tile < threshold, 0, 1)
         predicted_tile = tf.squeeze(predicted_tile, axis=0)
         predicted_tile = np.moveaxis(predicted_tile, 2, 0)
@@ -233,7 +233,7 @@ def unet_fit() -> None:
         steps_per_epoch=(no_of_trainsets // BATCH_SIZE),
         epochs=EPOCH,
         validation_steps=(no_of_testsets // BATCH_SIZE),
-        workers=7,
+        workers=1,
         use_multiprocessing=False,
         callbacks=[checkpoint, tensorboard_callback],
     )

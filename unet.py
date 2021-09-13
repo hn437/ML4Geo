@@ -35,9 +35,11 @@ def determine_class_threshold(mode) -> tuple:
     model = build_model(target_size=TARGET_SIZE)
     model.load_weights(os.path.join(RESULT_PATH, "weights.h5"))
 
-    train_gen, test_gen, no_of_trainsets, no_of_testsets = get_generator(
+    _, test_gen, _, no_of_testsets = get_generator(
         batch_size=BATCH_SIZE, target_size=TARGET_SIZE, mode=f"{mode}_data"
     )
+    # make usable by Tensorflow 2.0
+    test_gen = (pair for pair in test_gen)
 
     counter_processed_files = 0
     mask_total = np.array([])
@@ -201,6 +203,10 @@ def unet_fit() -> None:
     train_gen, test_gen, no_of_trainsets, no_of_testsets = get_generator(
         batch_size=BATCH_SIZE, target_size=TARGET_SIZE, mode="test_data"
     )
+    # make usable by Tensorflow 2.0
+    train_gen = (pair for pair in train_gen)
+    test_gen = (pair for pair in test_gen)
+
     # Build model and compile
     model = build_model(target_size=TARGET_SIZE)
 

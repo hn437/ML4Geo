@@ -40,6 +40,6 @@ def main(mode: str) -> None:
 
 if __name__ == "__main__":
     #working_mode = "Preprocessing"
-    #working_mode = "Unet"
-    working_mode = "Complete"
+    working_mode = "Unet"
+    #working_mode = "Complete"
     main(working_mode)

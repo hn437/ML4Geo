@@ -187,6 +187,7 @@ def predict_raster() -> None:
                 **out_meta,
             ) as outds:
                 outds.write(predicted_tile, window=window)
+                outds.close()
         else:
             with rasterio.open(
                 os.path.join(RESULT_PATH, "predicted_raster.tif"),
@@ -195,6 +196,7 @@ def predict_raster() -> None:
                 **out_meta,
             ) as outds:
                 outds.write(predicted_tile, window=window)
+                outds.close()
     logger.setLevel(logging.INFO)
 
 

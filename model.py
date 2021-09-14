@@ -102,10 +102,10 @@ def build_model(target_size):
     vgg16 = VGG16(include_top=False, weights="imagenet", input_tensor=inputs)
 
     # make the first pretrained layer untrainable
-    for layer in vgg16.layers[:-8]:
+    """for layer in vgg16.layers[:-8]:
         layer.trainable = (
             False  # TODO: test if a low training rate outperforms no training
-        )
+        )"""
 
     # encoder layer
     e1 = vgg16.get_layer("block1_conv2").output

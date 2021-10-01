@@ -1,3 +1,6 @@
+"""
+This script holds some helping functions which are called within other scripts
+"""
 import json
 import os
 from itertools import product
@@ -13,7 +16,8 @@ from main import TARGET_SIZE
 
 
 def query(request: Dict, bpolys: str, properties: str = None) -> Dict:
-    """Query ohsome API endpoint with filter."""
+    """This function executes the ohsome query"""
+    """Query ohsome API endpoint with filter"""
     url = OHSOME_API + request["endpoint"]
     if properties is not None:
         data = {"bpolys": bpolys, "filter": request["filter"], "properties": properties}
@@ -35,6 +39,8 @@ def query(request: Dict, bpolys: str, properties: str = None) -> Dict:
 
 
 def update_json(key, val) -> None:
+    """This function adds a key-value-pair to the metrics-json and creates it if it does
+        not exist"""
     if os.path.exists(os.path.join(RESULT_PATH, "metrics.json")):
         with open(os.path.join(RESULT_PATH, "metrics.json"), "r") as file:
             metrics = json.load(file)
@@ -46,6 +52,7 @@ def update_json(key, val) -> None:
 
 
 def get_tiles(ds, width=256, height=256) -> tuple:
+    """This function gets a tile and it's transformation info from a raster"""
     ncols, nrows = ds.meta["width"], ds.meta["height"]
     offsets = product(range(0, ncols, width), range(0, nrows, height))
     big_window = windows.Window(col_off=0, row_off=0, width=ncols, height=nrows)
@@ -58,6 +65,9 @@ def get_tiles(ds, width=256, height=256) -> tuple:
 
 
 def write_raster_window(raster, r_mask, window, transform, path, counter) -> bool:
+    """This function writes a tile of a image raster and its belonging mask raster into
+        a directory (train, test, validation) and pads them to the target size if
+        necessary"""
     tiledata_img = raster.read(window=window)
     tiledata_mask = r_mask.read(window=window)
     if (len(tiledata_img.shape) == 3 and np.sum(tiledata_img) == 0) or np.sum(

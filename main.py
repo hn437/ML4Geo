@@ -1,3 +1,7 @@
+"""
+This script sets preprocessing- and CNN-training variables and starts a run of either
+the whole or parts of the workflow
+"""
 from definitions import logger
 
 # SCRIPT SETTINGS:

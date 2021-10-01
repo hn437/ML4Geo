@@ -1,3 +1,7 @@
+"""
+This script creates training, test, and validation data based on the input raster and
+OSM data
+"""
 import json
 import logging
 import math
@@ -27,6 +31,7 @@ from definitions import (
 from main import NEW_WORKFLOW, TARGET_SIZE, TILE_HEIGHT, TILE_WIDTH
 from utils import get_tiles, query, write_raster_window
 
+# defining the ohsome query
 buil_def = {
     "description": "All Buildings in an Area",
     "endpoint": "elements/geometry",
@@ -37,6 +42,12 @@ buil_def = {
 
 
 def get_building_data(raster) -> gpd.GeoDataFrame:
+    """
+    This function queries OSM buildings within the bounding box of the raster and
+        reprojects them into the rasters' projection
+    :param raster: the input raster which is used for ML
+    :return: geopandas' dataframe of the OSM buildings
+    """
     bbox = box(*raster.bounds)
     bbox = gpd.GeoSeries([bbox]).set_crs(raster.crs).to_crs(epsg=4326).__geo_interface__
     bbox = json.dumps(bbox)
@@ -53,6 +64,14 @@ def get_building_data(raster) -> gpd.GeoDataFrame:
 
 
 def generate_mask(raster, vector) -> None:
+    """
+    This function generates a binary mask for a raster indicating where vector features
+        overlay the raster
+    :param raster: the raster the mask shoul be generated for
+    :param vector: the vector features which should be used for mask creating
+    :return: None. The mask will be saved as file to the harddrive in order to use
+        tile-by-tile creation
+    """
     if os.path.exists(os.path.join(INTERMEDIATE_PATH, "masked_raster.tif")):
         os.remove(os.path.join(INTERMEDIATE_PATH, "masked_raster.tif"))
     out_meta = raster.meta.copy()
@@ -66,11 +85,14 @@ def generate_mask(raster, vector) -> None:
     tiles_needed = math.ceil(
         (out_meta["width"] * out_meta["height"]) / (TILE_WIDTH * TILE_HEIGHT)
     )
+    # change logging level as rasterio always warns when using BIGTIFF option in "r+"
     rasterio_logger = rasterio.logging.getLogger()
     rasterio_logger.setLevel(logging.ERROR)
     logger.setLevel(logging.ERROR)
     for window, transform in tqdm(
-        get_tiles(raster, TILE_WIDTH, TILE_HEIGHT), total=tiles_needed
+        # get a tile of the original raster
+        get_tiles(raster, TILE_WIDTH, TILE_HEIGHT),
+        total=tiles_needed,
     ):
         meta_tile = raster.meta.copy()
         meta_tile["transform"] = transform
@@ -94,12 +116,14 @@ def generate_mask(raster, vector) -> None:
                 pad_width=0.5,
                 indexes=None,
             )
-
+        # create single band from triple band and classify binary
         out_image = np.sum(out_image, axis=0, dtype="uint8")
         out_image = np.where(out_image > 0, 1, out_image)
+        # reduce salt-n-pepper noise
         out_image = median(out_image, disk(1), mode="constant", cval=0)
         out_image = np.array([out_image])
 
+        # write tile in resulting mask raster
         if os.path.exists(os.path.join(INTERMEDIATE_PATH, "masked_raster.tif")):
             with rasterio.open(
                 os.path.join(INTERMEDIATE_PATH, "masked_raster.tif"),
@@ -116,6 +140,7 @@ def generate_mask(raster, vector) -> None:
                 **out_meta,
             ) as outds:
                 outds.write(out_image, window=window)
+    # set logging level back to info
     logger.setLevel(logging.INFO)
 
 
@@ -166,6 +191,13 @@ def create_ml_data(raster, r_mask, vector) -> None:
 
 
 def create_ml_tiles(raster, r_mask) -> None:
+    """
+    This function breaks up the raster and mask into tiles and writes 80% into a dir for
+        training, 10% into a dir for testing and 10% into a dir for validation
+    :param raster: the raster data to be used for training/testing/validation
+    :param r_mask: the mask which indicates the buildings
+    :return: None, as data is stored on hard drive
+    """
     tiles_to_be_created = math.ceil(
         (raster.meta["width"] * raster.meta["height"])
         / (TARGET_SIZE[0] * TARGET_SIZE[1])
@@ -191,6 +223,7 @@ def create_ml_tiles(raster, r_mask) -> None:
 
 
 def preprocessing_data() -> None:
+    """This function runs the other functions within this script in the correct order"""
     raster = rasterio.open(RASTER_PATH)
 
     logger.info("Query buildings...")
